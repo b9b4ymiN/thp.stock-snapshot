@@ -543,21 +543,4 @@ function parseValue(value: string): number | null {
   return num * multiplier;
 }
 
-// ตัวอย่างการเรียกใช้งาน
-async function main() {
-  const symbol = "AOT.BK"; // หรือ SET:BKK:AOT
-
-  console.log("--- Overview ---");
-  const overview = await getStockOverview(symbol);
-  console.log(overview);
-
-  console.log("--- Financials ---");
-  const financials = await getStockFinancials(symbol, "Income", "Quarterly");
-  console.log(financials);
-
-  console.log("--- statistics ---");
-  const statistics = await getStockStatistics(symbol);
-  console.log(statistics);
-}
-
-main();
+ 
