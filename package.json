@@ -8,10 +8,9 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "git-release": "npx zx ./scripts/release.mjs",
-    "release:patch": "npm run build && npm run git-release -- patch",
-    "release:minor": "npm run build && npm run git-release -- minor",
-    "release:major": "npm run build && npm run git-release -- major"
+    "release:patch": "npm run build && npx zx ./scripts/release.mjs patch",
+    "release:minor": "npm run build && npx zx ./scripts/release.mjs minor",
+    "release:major": "npm run build && npx zx ./scripts/release.mjs major"
   },
   "dependencies": {
     "axios": "^1.6.0",
