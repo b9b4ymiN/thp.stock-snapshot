@@ -1,5 +1,5 @@
 {
-  "name": "thp.stock-snapshot",
+  "name": "stock-snapshot",
   "version": "1.0.1",
   "description": "Lightweight Node.js library to fetch stock financials, statistics, and overviews from StockAnalysis.com. Supports Thai and US stocks with auto-region detection",
   "main": "dist/index.js",
@@ -8,12 +8,10 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "release:patch": "npm run build && npm run git-release patch",
-    "release:minor": "npm run build && npm run git-release minor",
-    "release:major": "npm run build && npm run git-release major",
     "git-release": "npx zx ./scripts/release.mjs",
-    "typescript": "^5.3.3"
+    "release:patch": "npm run build && npm run git-release -- patch",
+    "release:minor": "npm run build && npm run git-release -- minor",
+    "release:major": "npm run build && npm run git-release -- major"
   },
   "dependencies": {
     "axios": "^1.6.0",
