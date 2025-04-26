@@ -19,17 +19,6 @@ function cleanSymbol(rawSymbol: string): string {
   return rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "").toUpperCase();
 }
 
-function buildStatisticsUrl(rawSymbol: string): string {
-  const symbol = cleanSymbol(rawSymbol);
-  const market = detectMarket(rawSymbol);
-
-  if (market === "bkk") {
-    return `https://stockanalysis.com/quote/bkk/${symbol}`;
-  } else {
-    return `https://stockanalysis.com/stocks/${symbol.toLowerCase()}`;
-  }
-}
-
 // ดึงข้อมูล overview (ข้อมูลราคาปัจจุบัน)
 export async function getStockOverview(
   rawSymbol: string
@@ -44,8 +33,8 @@ export async function getStockOverview(
       ? `https://stockanalysis.com/quote/bkk/${symbol}/`
       : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
 
-      const { data } = await axios.get(url);
-      const $ = cheerio.load(data);
+  const { data } = await axios.get(url);
+  const $ = cheerio.load(data);
 
   const priceText = $("div.text-4xl.font-bold").first().text();
   const price = parseFloat(priceText.replace(",", ""));
@@ -98,7 +87,7 @@ export async function getStockFinancials(
     .replace(/^BKK:/, "") // ตัด BKK: ออก
     .replace(/\.BK$/, ""); // ตัด .BK ออก
   const market = detectMarket(rawSymbol);
-  const baseUrl =
+  let baseUrl =
     market === "bkk"
       ? `https://stockanalysis.com/quote/bkk/${symbol}/`
       : `https://stockanalysis.com/stocks/${symbol}/`;
@@ -215,11 +204,11 @@ export async function getStockStatistics(
   const symbol = rawSymbol
     .replace(/^BKK:/, "") // ตัด BKK: ออก
     .replace(/\.BK$/, ""); // ตัด .BK ออก
-  const market = detectMarket(rawSymbol);
+  let market = detectMarket(rawSymbol);
   let url =
-    market === "bkk"
-      ? `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`
-      : `https://stockanalysis.com/stocks/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
+    market === "us"
+      ? `https://stockanalysis.com/stocks/${symbol}/statistics/`
+      : `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
 
   //https://stockanalysis.com/quote/bkk/AP/statistics/
   //https://stockanalysis.com/stocks/aapl/statistics/
@@ -576,9 +565,3 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-
-const data = async () => {
-  const aa = await getStockFinancials("AAPL");
-  console.log(aa);
-};
-data();
