@@ -11,7 +11,7 @@ import { StockOverview } from "./types/StockOverview";
 export type Market = "bkk" | "us";
 
 function detectMarket(symbol: string): "bkk" | "us" {
-  if (symbol.startsWith("BKK:") || symbol.endsWith(".BK")) return "bkk";
+  if (/^(BKK:|.+\.BK)$/i.test(symbol)) return "bkk";
   return "us";
 }
 
@@ -565,3 +565,11 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
+/*
+const test = async () => {
+  let data = await getStockStatistics("AAPL");
+  console.log(data);
+};
+
+test();
+*/
