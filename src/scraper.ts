@@ -10,11 +10,24 @@ import { StockOverview } from "./types/StockOverview";
 
 export type Market = "bkk" | "us";
 
-export function detectMarket(symbol: string): Market {
-  if (symbol.startsWith("BKK:") || symbol.endsWith(".BK")) {
-    return "bkk";
-  }
+function detectMarket(symbol: string): "bkk" | "us" {
+  if (symbol.startsWith("BKK:") || symbol.endsWith(".BK")) return "bkk";
   return "us";
+}
+
+function cleanSymbol(rawSymbol: string): string {
+  return rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "").toUpperCase();
+}
+
+function buildStatisticsUrl(rawSymbol: string): string {
+  const symbol = cleanSymbol(rawSymbol);
+  const market = detectMarket(rawSymbol);
+
+  if (market === "bkk") {
+    return `https://stockanalysis.com/quote/bkk/${symbol}`;
+  } else {
+    return `https://stockanalysis.com/stocks/${symbol.toLowerCase()}`;
+  }
 }
 
 // ดึงข้อมูล overview (ข้อมูลราคาปัจจุบัน)
@@ -26,13 +39,13 @@ export async function getStockOverview(
     .replace(/^BKK:/, "") // ตัด BKK: ออก
     .replace(/\.BK$/, ""); // ตัด .BK ออก
 
-  const url =
-    market === "bkk"
+  let url =
+    market == "bkk"
       ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-      : `https://stockanalysis.com/quote/${symbol}/`;
+      : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
 
-  const { data } = await axios.get(url);
-  const $ = cheerio.load(data);
+      const { data } = await axios.get(url);
+      const $ = cheerio.load(data);
 
   const priceText = $("div.text-4xl.font-bold").first().text();
   const price = parseFloat(priceText.replace(",", ""));
@@ -88,7 +101,7 @@ export async function getStockFinancials(
   const baseUrl =
     market === "bkk"
       ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-      : `https://stockanalysis.com/quote/${symbol}/`;
+      : `https://stockanalysis.com/stocks/${symbol}/`;
 
   let url = `${baseUrl}financials/`;
 
@@ -203,13 +216,16 @@ export async function getStockStatistics(
     .replace(/^BKK:/, "") // ตัด BKK: ออก
     .replace(/\.BK$/, ""); // ตัด .BK ออก
   const market = detectMarket(rawSymbol);
-  const url =
+  let url =
     market === "bkk"
       ? `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`
-      : `https://stockanalysis.com/quote/${symbol}/statistics/`;
+      : `https://stockanalysis.com/stocks/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
 
-  const response = await axios.get(url);
-  const $ = cheerio.load(response.data);
+  //https://stockanalysis.com/quote/bkk/AP/statistics/
+  //https://stockanalysis.com/stocks/aapl/statistics/
+
+  const html = await fetchHtmlSafe(url);
+  const $ = cheerio.load(html);
 
   const statistics: StockStatistics = {
     marketCap: null,
@@ -543,4 +559,26 @@ function parseValue(value: string): number | null {
   return num * multiplier;
 }
 
- 
+export async function fetchHtmlSafe(url: string): Promise<string> {
+  const res = await axios.get(url, { validateStatus: () => true });
+
+  const isErrorPage =
+    !res.data ||
+    res.status >= 400 ||
+    typeof res.data !== "string" ||
+    res.data.includes("Page Not Found") || // fallback content
+    !res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
+
+  if (isErrorPage) {
+    console.log("url error : ", url);
+    throw new Error("Invalid page content (likely a 404 page)");
+  }
+
+  return res.data;
+}
+
+const data = async () => {
+  const aa = await getStockFinancials("AAPL");
+  console.log(aa);
+};
+data();
