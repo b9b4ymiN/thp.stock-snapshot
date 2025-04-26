@@ -36,17 +36,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.detectMarket = detectMarket;
 exports.getStockOverview = getStockOverview;
 exports.getStockFinancials = getStockFinancials;
 exports.getStockStatistics = getStockStatistics;
+exports.fetchHtmlSafe = fetchHtmlSafe;
 const axios_1 = __importDefault(require("axios"));
 const cheerio = __importStar(require("cheerio"));
 function detectMarket(symbol) {
-    if (symbol.startsWith("BKK:") || symbol.endsWith(".BK")) {
+    if (/^(BKK:|.+\.BK)$/i.test(symbol))
         return "bkk";
-    }
     return "us";
+}
+function cleanSymbol(rawSymbol) {
+    return rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "").toUpperCase();
 }
 // ดึงข้อมูล overview (ข้อมูลราคาปัจจุบัน)
 async function getStockOverview(rawSymbol) {
@@ -54,9 +56,9 @@ async function getStockOverview(rawSymbol) {
     const symbol = rawSymbol
         .replace(/^BKK:/, "") // ตัด BKK: ออก
         .replace(/\.BK$/, ""); // ตัด .BK ออก
-    const url = market === "bkk"
+    let url = market == "bkk"
         ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-        : `https://stockanalysis.com/quote/${symbol}/`;
+        : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
     const { data } = await axios_1.default.get(url);
     const $ = cheerio.load(data);
     const priceText = $("div.text-4xl.font-bold").first().text();
@@ -101,9 +103,9 @@ async function getStockFinancials(rawSymbol, statementType = "Income", periodTyp
         .replace(/^BKK:/, "") // ตัด BKK: ออก
         .replace(/\.BK$/, ""); // ตัด .BK ออก
     const market = detectMarket(rawSymbol);
-    const baseUrl = market === "bkk"
+    let baseUrl = market === "bkk"
         ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-        : `https://stockanalysis.com/quote/${symbol}/`;
+        : `https://stockanalysis.com/stocks/${symbol}/`;
     let url = `${baseUrl}financials/`;
     if (statementType === "Balance Sheet") {
         url = `${baseUrl}financials/balance-sheet/`;
@@ -210,12 +212,14 @@ async function getStockStatistics(rawSymbol) {
     const symbol = rawSymbol
         .replace(/^BKK:/, "") // ตัด BKK: ออก
         .replace(/\.BK$/, ""); // ตัด .BK ออก
-    const market = detectMarket(rawSymbol);
-    const url = market === "bkk"
-        ? `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`
-        : `https://stockanalysis.com/quote/${symbol}/statistics/`;
-    const response = await axios_1.default.get(url);
-    const $ = cheerio.load(response.data);
+    let market = detectMarket(rawSymbol);
+    let url = market === "us"
+        ? `https://stockanalysis.com/stocks/${symbol}/statistics/`
+        : `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
+    //https://stockanalysis.com/quote/bkk/AP/statistics/
+    //https://stockanalysis.com/stocks/aapl/statistics/
+    const html = await fetchHtmlSafe(url);
+    const $ = cheerio.load(html);
     const statistics = {
         marketCap: null,
         enterpriseValue: null,
@@ -545,3 +549,24 @@ function parseValue(value) {
         return null;
     return num * multiplier;
 }
+async function fetchHtmlSafe(url) {
+    const res = await axios_1.default.get(url, { validateStatus: () => true });
+    const isErrorPage = !res.data ||
+        res.status >= 400 ||
+        typeof res.data !== "string" ||
+        res.data.includes("Page Not Found") || // fallback content
+        !res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
+    if (isErrorPage) {
+        console.log("url error : ", url);
+        throw new Error("Invalid page content (likely a 404 page)");
+    }
+    return res.data;
+}
+/*
+const test = async () => {
+  let data = await getStockStatistics("AAPL");
+  console.log(data);
+};
+
+test();
+*/ 
