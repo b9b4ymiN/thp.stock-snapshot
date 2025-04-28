@@ -575,6 +575,7 @@ async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodT
     $("tbody tr").each((_, row) => {
         const cells = $(row).find("td");
         const key = $(cells[0]).text().trim().replace(/\s/g, "");
+        //console.log("key : ", key);
         if (!key)
             return;
         const values = [];
@@ -584,7 +585,8 @@ async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodT
                 values.push(null);
             }
             else {
-                const num = Number(text);
+                const num = Number(text.replace("%", ""));
+                //if (key == "GrossMargin") console.log("ProfitMargin : ", text, num);
                 if (isNaN(num)) {
                     values.push(null);
                 }
@@ -671,13 +673,13 @@ async function fetchHtmlSafe(url) {
 /*
 const test = async () => {
   let data: StatementType[] = await getStockFinancialsV2(
-    "AAPL",
-    "Ratios",
-    "Annual"
+    "AOT.BK",
+    "Income",
+    "Quarterly"
   );
-   
-  console.log((data[0] as IncomeStatementType).EBIT);
+
+  console.log(data);
 };
 
 test();
-*/ 
+*/

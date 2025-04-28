@@ -584,7 +584,7 @@ export async function getStockFinancialsV2(
   $("tbody tr").each((_, row) => {
     const cells = $(row).find("td");
     const key = $(cells[0]).text().trim().replace(/\s/g, "");
-   
+    //console.log("key : ", key);
     if (!key) return;
     const values: (number | null)[] = [];
     cells.slice(1, -1).each((_, cell) => {
@@ -592,7 +592,8 @@ export async function getStockFinancialsV2(
       if (text === "-" || text === "") {
         values.push(null);
       } else {
-        const num = Number(text);
+        const num = Number(text.replace("%", ""));
+        //if (key == "GrossMargin") console.log("ProfitMargin : ", text, num);
         if (isNaN(num)) {
           values.push(null);
         } else {
@@ -618,31 +619,29 @@ export async function getStockFinancialsV2(
   });
 
   // ⬇️ สร้าง Array of Object
-  const result: StatementType[] = fiscalYear.map(
-    (fiscalLabel, index) => {
-      let quarter = "ALL";
-      let year = "";
+  const result: StatementType[] = fiscalYear.map((fiscalLabel, index) => {
+    let quarter = "ALL";
+    let year = "";
 
-      // เช็คว่า fiscalLabel เป็น Q1 Q2 Q3 Q4 หรือ FY
-      const matchQuarter = fiscalLabel.match(/(Q\d)\s+(\d{4})/);
-      const matchFY = fiscalLabel.match(/FY\s+(\d{4})/);
+    // เช็คว่า fiscalLabel เป็น Q1 Q2 Q3 Q4 หรือ FY
+    const matchQuarter = fiscalLabel.match(/(Q\d)\s+(\d{4})/);
+    const matchFY = fiscalLabel.match(/FY\s+(\d{4})/);
 
-      if (matchQuarter) {
-        quarter = matchQuarter[1]; // เช่น "Q2"
-        year = matchQuarter[2]; // เช่น "2024"
-      } else if (matchFY) {
-        year = matchFY[1]; // เช่น "2024"
-      } else {
-        year = fiscalLabel; // กรณีอื่น fallback ใส่ทั้ง string
-      }
-
-      const record: any = { fiscalYear: fiscalLabel, quarter, year };
-      for (const [key, valueArr] of Object.entries(financialsMap)) {
-        record[key] = valueArr[index] ?? null;
-      }
-      return record;
+    if (matchQuarter) {
+      quarter = matchQuarter[1]; // เช่น "Q2"
+      year = matchQuarter[2]; // เช่น "2024"
+    } else if (matchFY) {
+      year = matchFY[1]; // เช่น "2024"
+    } else {
+      year = fiscalLabel; // กรณีอื่น fallback ใส่ทั้ง string
     }
-  );
+
+    const record: any = { fiscalYear: fiscalLabel, quarter, year };
+    for (const [key, valueArr] of Object.entries(financialsMap)) {
+      record[key] = valueArr[index] ?? null;
+    }
+    return record;
+  });
 
   return result;
 }
@@ -685,16 +684,15 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-
 /*
 const test = async () => {
   let data: StatementType[] = await getStockFinancialsV2(
-    "AAPL",
-    "Ratios",
-    "Annual"
+    "AOT.BK",
+    "Income",
+    "Quarterly"
   );
-   
-  console.log((data[0] as IncomeStatementType).EBIT);
+
+  console.log(data);
 };
 
 test();
