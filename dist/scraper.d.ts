@@ -5,4 +5,5 @@ export type Market = "bkk" | "us";
 export declare function getStockOverview(rawSymbol: string): Promise<StockOverview>;
 export declare function getStockFinancials(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<FinancialStatement>;
 export declare function getStockStatistics(rawSymbol: string): Promise<StockStatistics>;
+export declare function getStockFinancialsV2(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<StatementType[]>;
 export declare function fetchHtmlSafe(url: string): Promise<string>;
