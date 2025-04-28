@@ -586,17 +586,19 @@ async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodT
             }
             else {
                 const num = Number(text.replace("%", ""));
-                //if (key == "GrossMargin") console.log("ProfitMargin : ", text, num);
+                if (key == "PerShare")
+                    console.log("PerShare : ", text, num);
                 if (isNaN(num)) {
                     values.push(null);
                 }
                 else {
-                    if (key.includes("Margin") ||
+                    if (key.includes("EPS") ||
+                        key.includes("Margin") ||
                         key.includes("Growth") ||
                         key.includes("Yield") ||
                         key.includes("Ratio") ||
-                        key.includes("Per Share") ||
-                        key.includes("Tax Rate") ||
+                        key.includes("PerShare") ||
+                        key.includes("TaxRate") ||
                         key.includes("Turnover") ||
                         key.includes("RO") ||
                         key.includes("Payout")) {
