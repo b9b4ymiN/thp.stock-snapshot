@@ -3,10 +3,14 @@ import * as cheerio from "cheerio";
 import {
   FinancialPeriodType,
   FinancialStatement,
+  FinancialStatementV2,
+  IncomeStatement,
   StatementType,
 } from "./types/FinancialStatement";
 import { StockStatistics } from "./types/StockStatistics";
 import { StockOverview } from "./types/StockOverview";
+import { json } from "stream/consumers";
+import { IncomeStatementType } from "./types/Statement";
 
 export type Market = "bkk" | "us";
 
@@ -527,6 +531,122 @@ export async function getStockStatistics(
   return statistics;
 }
 
+// ดึงข้อมูล financials (งบย้อนหลัง) v2
+export async function getStockFinancialsV2(
+  rawSymbol: string,
+  statementType: StatementType = "Income",
+  periodType: FinancialPeriodType = "Annual"
+): Promise<StatementType[]> {
+  const symbol = rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "");
+  const market = detectMarket(rawSymbol);
+
+  let baseUrl =
+    market === "bkk"
+      ? `https://stockanalysis.com/quote/bkk/${symbol}/`
+      : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
+
+  let url = `${baseUrl}financials/`;
+  if (statementType === "Balance Sheet")
+    url = `${baseUrl}financials/balance-sheet/`;
+  else if (statementType === "Cash Flow")
+    url = `${baseUrl}financials/cash-flow-statement/`;
+  else if (statementType === "Ratios") url = `${baseUrl}financials/ratios/`;
+
+  if (periodType === "Quarterly") url += "?p=quarterly";
+  else if (periodType === "TTM") url += "?p=trailing";
+
+  const { data } = await axios.get(url);
+  const $ = cheerio.load(data);
+
+  const unitRaw = $(".relative.inline-block.text-left").text().trim();
+  const unitText = unitRaw
+    .replace(/Data Source|Download/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  let multiplier = 1;
+  if (unitText.includes("Million")) multiplier = 1e6;
+  else if (unitText.includes("Billion")) multiplier = 1e9;
+  else if (unitText.includes("Thousand")) multiplier = 1e3;
+  else if (unitText.includes("Trillion")) multiplier = 1e12;
+
+  const fiscalYear: string[] = [];
+  $("thead tr")
+    .first()
+    .find("th")
+    .slice(1)
+    .slice(1, -1)
+    .each((_, element) => {
+      fiscalYear.push($(element).text().trim());
+    });
+
+  const financialsMap: Record<string, (number | null)[]> = {};
+  $("tbody tr").each((_, row) => {
+    const cells = $(row).find("td");
+    const key = $(cells[0]).text().trim().replace(/\s/g, "");
+   
+    if (!key) return;
+    const values: (number | null)[] = [];
+    cells.slice(1, -1).each((_, cell) => {
+      const text = $(cell).text().trim().replace(/,/g, "").replace(/\$/g, "");
+      if (text === "-" || text === "") {
+        values.push(null);
+      } else {
+        const num = Number(text);
+        if (isNaN(num)) {
+          values.push(null);
+        } else {
+          if (
+            key.includes("Margin") ||
+            key.includes("Growth") ||
+            key.includes("Yield") ||
+            key.includes("Ratio") ||
+            key.includes("Per Share") ||
+            key.includes("Tax Rate") ||
+            key.includes("Turnover") ||
+            key.includes("RO") ||
+            key.includes("Payout")
+          ) {
+            values.push(parseFloat(num.toFixed(2)));
+          } else {
+            values.push(num * multiplier);
+          }
+        }
+      }
+    });
+    financialsMap[key] = values;
+  });
+
+  // ⬇️ สร้าง Array of Object
+  const result: StatementType[] = fiscalYear.map(
+    (fiscalLabel, index) => {
+      let quarter = "ALL";
+      let year = "";
+
+      // เช็คว่า fiscalLabel เป็น Q1 Q2 Q3 Q4 หรือ FY
+      const matchQuarter = fiscalLabel.match(/(Q\d)\s+(\d{4})/);
+      const matchFY = fiscalLabel.match(/FY\s+(\d{4})/);
+
+      if (matchQuarter) {
+        quarter = matchQuarter[1]; // เช่น "Q2"
+        year = matchQuarter[2]; // เช่น "2024"
+      } else if (matchFY) {
+        year = matchFY[1]; // เช่น "2024"
+      } else {
+        year = fiscalLabel; // กรณีอื่น fallback ใส่ทั้ง string
+      }
+
+      const record: any = { fiscalYear: fiscalLabel, quarter, year };
+      for (const [key, valueArr] of Object.entries(financialsMap)) {
+        record[key] = valueArr[index] ?? null;
+      }
+      return record;
+    }
+  );
+
+  return result;
+}
+
 function parseValue(value: string): number | null {
   if (!value || value === "n/a") return null;
   value = value.replace(/,/g, "").replace("%", "").trim();
@@ -565,10 +685,16 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
+
 /*
 const test = async () => {
-  let data = await getStockStatistics("AAPL");
-  console.log(data);
+  let data: StatementType[] = await getStockFinancialsV2(
+    "AAPL",
+    "Ratios",
+    "Annual"
+  );
+   
+  console.log((data[0] as IncomeStatementType).EBIT);
 };
 
 test();
