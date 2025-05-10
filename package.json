@@ -1,6 +1,6 @@
 {
   "name": "stock-snapshot",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Lightweight Node.js library to fetch stock financials, statistics, and overviews from StockAnalysis.com. Supports Thai and US stocks with auto-region detection",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
