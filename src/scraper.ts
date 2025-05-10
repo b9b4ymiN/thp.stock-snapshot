@@ -575,7 +575,7 @@ export async function getStockFinancialsV2(
     .first()
     .find("th")
     .slice(1)
-    .slice(1, -1)
+    .slice(0, -1)
     .each((_, element) => {
       fiscalYear.push($(element).text().trim());
     });
@@ -638,13 +638,27 @@ export async function getStockFinancialsV2(
     }
 
     const record: any = { fiscalYear: fiscalLabel, quarter, year };
-    for (const [key, valueArr] of Object.entries(financialsMap)) {
+    // ✅ Normalize ชื่อ key ก่อน map
+    const normalizedMap = normalizeKeys(financialsMap);
+    for (const [key, valueArr] of Object.entries(normalizedMap)) {
       record[key] = valueArr[index] ?? null;
     }
     return record;
   });
 
   return result;
+}
+
+function normalizeKeys(obj: Record<string, any>): Record<string, any> {
+  const normalized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = key
+      .replace(/[\/()]/g, "") // ลบ / ( )
+      .replace(/\s+/g, "") // ลบช่องว่าง
+      .replace(/%/g, "Percent"); // แปลง % เป็น Percent (ตามต้องการ)
+    normalized[newKey] = value;
+  }
+  return normalized;
 }
 
 function parseValue(value: string): number | null {
@@ -688,13 +702,17 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
 /*
 const test = async () => {
+   
   let data: StatementType[] = await getStockFinancialsV2(
     "AOT.BK",
-    "Income",
-    "Quarterly"
+    "Ratios",
+    "Annual"
   );
+  console.log(data[0]);
+  
 
-  console.log(data);
+  let data1 = await getStockStatistics("AOT.BK");
+  console.log(data1);
 };
 
 test();
