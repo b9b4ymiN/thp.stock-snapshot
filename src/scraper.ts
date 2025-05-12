@@ -1,3 +1,5 @@
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import {
@@ -12,8 +14,11 @@ import { StockOverview } from "./types/StockOverview";
 import { json } from "stream/consumers";
 import { IncomeStatementType } from "./types/Statement";
 import { FairValueItem } from "./types/FairValueItem";
+import { GuruWACCModel } from "./types/GuruWACC";
+import { valuationTableModel } from "./types/valuationTableMode";
 
 export type Market = "bkk" | "us";
+puppeteer.use(StealthPlugin());
 
 function detectMarket(symbol: string): "bkk" | "us" {
   if (/^(BKK:|.+\.BK)$/i.test(symbol)) return "bkk";
@@ -678,6 +683,195 @@ export async function getFairValueTable(
   return table;
 }
 
+export async function getValuation(
+  symbol: string
+): Promise<valuationTableModel> {
+  let baseTicker = symbol;
+  if (symbol.endsWith(".BK")) {
+    baseTicker = symbol.slice(0, -3); // ตัด ".BK" ออกจากท้าย
+  }
+  const url = `https://valueinvesting.io/${symbol}/valuation/intrinsic-value`;
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+
+  const html = await page.content();
+  const $ = cheerio.load(html);
+
+  const result: valuationTableModel = {
+    symbol: baseTicker,
+    marketRiskPremium: 0,
+    costOfEquity: 0,
+    costOfDebt: 0,
+    wacc: 0,
+    valuation: [],
+  };
+
+  const allowedMethods = [
+    "DCF (Growth 5y)",
+    "DCF (Growth 10y)",
+    "DCF (EBITDA 5y)",
+    "DCF (EBITDA 10y)",
+    "Fair Value",
+    "P/E",
+    "EV/EBITDA",
+    "EPV",
+    "DDM - Stable",
+    "DDM - Multi",
+  ];
+
+  $("table.each_summary tr").each((_, tr) => {
+    const td = $(tr).find("td");
+    if (td.length === 4) {
+      const method = td.eq(0).text().trim();
+      if (!allowedMethods.includes(method)) return;
+
+      const [minStr, maxStr] = td
+        .eq(1)
+        .text()
+        .trim()
+        .split("-")
+        .map((v) => v.trim());
+      const selected = parseFloat(td.eq(2).text().trim());
+      const upsideText = td.eq(3).text().trim().replace("%", "");
+      const valueMin = parseFloat(minStr);
+      const valueMax = parseFloat(maxStr);
+      const upside = parseFloat(upsideText);
+
+      result.valuation.push({ method, valueMin, valueMax, selected, upside });
+    }
+  });
+
+  $("table.market_table.overview_table tr").each((_, tr) => {
+    const label = $(tr).find("td").eq(0).text().trim();
+    const valueText = $(tr).find("td").eq(1).text().trim().replace("%", "");
+    const value = parseFloat(valueText);
+
+    if (label.includes("Market risk premium")) result.marketRiskPremium = value;
+    else if (label.includes("Cost of Equity")) result.costOfEquity = value;
+    else if (label.includes("Cost of Debt")) result.costOfDebt = value;
+    else if (label.includes("WACC")) result.wacc = value;
+  });
+
+  console.log("data : ", result);
+  await browser.close();
+  return result;
+}
+
+export async function getWaccAndRoicV3(symbol: string): Promise<GuruWACCModel> {
+  let baseTicker = symbol;
+  if (symbol.endsWith(".BK")) {
+    baseTicker = symbol.slice(0, -3); // ตัด ".BK" ออกจากท้าย
+    symbol = `BKK:${baseTicker.toUpperCase()}`; // นำหน้าด้วย "BKK:" และแปลงเป็นตัวพิมพ์ใหญ่
+  }
+
+  const url = `https://www.gurufocus.com/term/wacc/${symbol}`;
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+  const html = await page.content();
+  const $ = cheerio.load(html);
+
+  const getSafeText = (selector: string) =>
+    $(selector).first().text()?.trim() ?? "";
+
+  const wacc = (() => {
+    const match = getSafeText("#target_def_description p").match(
+      /cost of capital (is|was)?\s*([\d.]+)%+/i
+    );
+    return match ? Number(match[2]) : null;
+  })();
+
+  const roic = (() => {
+    const match = getSafeText("#target_def_description p").match(
+      /ROIC.*?([\d.]+)%+/i
+    );
+    return match ? Number(match[1]) : null;
+  })();
+
+  const calcPs = $("#target_def_calculation p.term_cal");
+  const p0 = calcPs.eq(0).text();
+  const p1 = calcPs.eq(1).text();
+  const p2 = calcPs.eq(2).text();
+  const p3 = calcPs.eq(3).text();
+
+  const extractFloatAfterEqual = (text: string) => {
+    const match = text.match(/=\s*([\d,]+\.?\d*)%?/);
+    return match ? parseFloat(match[1].replace(/,/g, "")) : null;
+  };
+
+  const extractFloatFromText = (text: string, label: string) => {
+    const regex = new RegExp(`${label}.*?([\\d,.]+)`, "i");
+    const match = text.match(regex);
+    return match ? Number(match[1].replace(/,/g, "")) : null;
+  };
+
+  const extractLastFloat = (text: string) => {
+    const matches = text.match(/(\d+[,.]?\d*)(?=%?)(?!.*\d)/);
+    return matches ? Number(matches[1].replace(/,/g, "")) : null;
+  };
+
+  const extractNumbersAfterCostOfEquity = (text: string): number[] | null => {
+    const match = text.match(
+      /Cost of Equity\s*=\s*([\d.]+)\s*%\s*\+\s*([\d.]+)\s*\*\s*([\d.]+)\s*%\s*=\s*([\d.]+)%/
+    );
+    return match ? match.slice(1).map((n) => Number(n)) : null;
+  };
+
+  const extractNumbersFromCostOfDebtLine = (text: string): number[] | null => {
+    const lines = text.split("\n").map((l) => l.trim());
+    const line = lines.find((l) => l.startsWith("Cost of Debt ="));
+    const match = line?.match(/=\s*([\d.]+)\s*\/\s*([\d.]+)\s*=\s*([\d.]+)%/);
+    return match ? match.slice(1).map((n) => Number(n)) : null;
+  };
+
+  // Values from Cost of Equity
+  const coeParts = extractNumbersAfterCostOfEquity(p1.split("c)")[1] ?? "");
+  const [riskFreeRate, beta, marketPremium, costOfEquity] = coeParts ?? [
+    null,
+    null,
+    null,
+    null,
+  ];
+
+  // Values from Cost of Debt
+  const codParts = extractNumbersFromCostOfDebtLine(p2);
+  const [interestExpense, totalDebt, costOfDebt] = codParts ?? [
+    null,
+    null,
+    null,
+  ];
+
+  const Result: GuruWACCModel = {
+    symbol: baseTicker,
+
+    marketCapMil: extractFloatFromText(p0, "market capitalization.*?is") ?? 0,
+    bookValueDebtMil: extractFloatFromText(p0, "Book Value of Debt.*?is") ?? 0,
+    weightEquity: extractLastFloat(p0.split("a)")[1] ?? "") ?? 0,
+    weightDebt: extractLastFloat(p0.split("b)")[1] ?? "") ?? 0,
+    taxRate: extractFloatAfterEqual(p3) ?? 0,
+
+    // equity
+    costOfEquity: costOfEquity ? costOfEquity : 0,
+    riskFreeRate: riskFreeRate ? riskFreeRate : 0,
+    beta: beta ? beta : 0,
+    marketPremium: marketPremium ? marketPremium : 0,
+
+    // debt
+    costOfDebt: costOfDebt ? costOfDebt : 0,
+    interestExpense: interestExpense ? interestExpense : 0,
+    totalDebt: totalDebt ? totalDebt : 0,
+
+    wacc: wacc ? wacc : 0,
+    roic: roic ? roic : 0,
+  };
+
+  await browser.close();
+
+  return Result;
+}
+
 function normalizeKeys(obj: Record<string, any>): Record<string, any> {
   const normalized: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -732,15 +926,16 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
   return res.data;
 }
 
+/*
 const test = async () => {
-  /*
+  
   let data: StatementType[] = await getStockFinancialsV2(
     "AP.BK",
     "Ratios",
     "Annual"
   );
   console.log(data[0]);
-*/
+ 
   //let data1 = await getStockStatistics("AP.BK");
   //console.log(data1);
 
@@ -754,3 +949,4 @@ const test = async () => {
 };
 
 test();
+*/

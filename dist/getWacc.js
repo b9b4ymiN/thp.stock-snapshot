@@ -55,10 +55,10 @@ async function getValuation(symbol) {
     const $ = cheerio.load(html);
     const result = {
         symbol: baseTicker,
-        marketRiskPremium: null,
-        costOfEquity: null,
-        costOfDebt: null,
-        wacc: null,
+        marketRiskPremium: 0,
+        costOfEquity: 0,
+        costOfDebt: 0,
+        wacc: 0,
         valuation: [],
     };
     const allowedMethods = [
@@ -106,7 +106,7 @@ async function getValuation(symbol) {
         else if (label.includes("WACC"))
             result.wacc = value;
     });
-    //console.log("data : ", result);
+    console.log("data : ", result);
     await browser.close();
     return result;
 }
@@ -174,26 +174,27 @@ async function getWaccAndRoicV3(symbol) {
         null,
         null,
     ];
-    const waccDetails = {
+    const Result = {
         symbol: baseTicker,
-        marketCapMil: extractFloatFromText(p0, "market capitalization.*?is"),
-        bookValueDebtMil: extractFloatFromText(p0, "Book Value of Debt.*?is"),
-        weightEquity: extractLastFloat(p0.split("a)")[1] ?? ""),
-        weightDebt: extractLastFloat(p0.split("b)")[1] ?? ""),
-        taxRate: extractFloatAfterEqual(p3),
+        marketCapMil: extractFloatFromText(p0, "market capitalization.*?is") ?? 0,
+        bookValueDebtMil: extractFloatFromText(p0, "Book Value of Debt.*?is") ?? 0,
+        weightEquity: extractLastFloat(p0.split("a)")[1] ?? "") ?? 0,
+        weightDebt: extractLastFloat(p0.split("b)")[1] ?? "") ?? 0,
+        taxRate: extractFloatAfterEqual(p3) ?? 0,
         // equity
-        costOfEquity,
-        riskFreeRate,
-        beta,
-        marketPremium,
+        costOfEquity: costOfEquity ? costOfEquity : 0,
+        riskFreeRate: riskFreeRate ? riskFreeRate : 0,
+        beta: beta ? beta : 0,
+        marketPremium: marketPremium ? marketPremium : 0,
         // debt
-        costOfDebt,
-        interestExpense,
-        totalDebt,
+        costOfDebt: costOfDebt ? costOfDebt : 0,
+        interestExpense: interestExpense ? interestExpense : 0,
+        totalDebt: totalDebt ? totalDebt : 0,
+        wacc: wacc ? wacc : 0,
+        roic: roic ? roic : 0,
     };
     await browser.close();
-    //console.log({ wacc, roic, ...waccDetails });
-    return { wacc, roic, ...waccDetails };
+    return Result;
 }
 // ทดลองรัน
 //getWaccAndRoicV3("AP.BK");
