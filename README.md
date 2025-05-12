@@ -36,3 +36,4 @@ url = `https://stockanalysis.com/quote/bkk/${ticker}/`;
 // หุ้นอเมริกา เช่น AAPL
 url = `https://stockanalysis.com/quote/${symbol}/`;
 }
+อัพเดตข้อมูล Ratios

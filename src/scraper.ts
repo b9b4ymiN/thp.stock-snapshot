@@ -302,6 +302,9 @@ export async function getStockStatistics(
       .each((_, row) => {
         const key = $(row).find("td").first().text().trim();
         const value = $(row).find("td").last().text().trim();
+
+        console.log("🧠 key =", key, value); // เพิ่มตรงนี้ดู output จริง
+
         const numericValue = parseValue(value);
 
         switch (key) {
@@ -662,7 +665,11 @@ function normalizeKeys(obj: Record<string, any>): Record<string, any> {
 }
 
 function parseValue(value: string): number | null {
-  if (!value || value === "n/a") return null;
+  if (!value) return null;
+
+  const lower = value.toLowerCase().trim();
+  if (lower === "n/a" || lower === "-" || lower === "--") return null;
+
   value = value.replace(/,/g, "").replace("%", "").trim();
 
   let multiplier = 1;
@@ -678,8 +685,7 @@ function parseValue(value: string): number | null {
   }
 
   const num = parseFloat(value);
-  if (isNaN(num)) return null;
-  return num * multiplier;
+  return isNaN(num) ? null : num * multiplier;
 }
 
 export async function fetchHtmlSafe(url: string): Promise<string> {
@@ -699,20 +705,17 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-
 /*
 const test = async () => {
-   
   let data: StatementType[] = await getStockFinancialsV2(
-    "AOT.BK",
+    "AP.BK",
     "Ratios",
     "Annual"
   );
   console.log(data[0]);
-  
 
-  let data1 = await getStockStatistics("AOT.BK");
-  console.log(data1);
+  //let data1 = await getStockStatistics("AP.BK");
+  //console.log(data1);
 };
 
 test();
