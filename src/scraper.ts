@@ -11,6 +11,7 @@ import { StockStatistics } from "./types/StockStatistics";
 import { StockOverview } from "./types/StockOverview";
 import { json } from "stream/consumers";
 import { IncomeStatementType } from "./types/Statement";
+import { FairValueItem } from "./types/FairValueItem";
 
 export type Market = "bkk" | "us";
 
@@ -653,6 +654,30 @@ export async function getStockFinancialsV2(
   return result;
 }
 
+export async function getFairValueTable(
+  symbol: string
+): Promise<FairValueItem[]> {
+  let url = `https://valueinvesting.io/${symbol}/valuation/intrinsic-value`; // <-- US ต้องใช้ /stocks/
+  const html = await fetchHtmlSafe(url);
+  const $ = cheerio.load(html);
+
+  const table: FairValueItem[] = [];
+
+  $("table.each_summary tbody tr.hover_gray").each((_, row) => {
+    const cells = $(row).find("td");
+    const model = $(cells[0]).text().trim();
+    const range = $(cells[1]).text().trim();
+    const selected = parseFloat($(cells[2]).text().trim());
+    const upside = $(cells[3]).text().trim();
+
+    if (model && range && !isNaN(selected)) {
+      table.push({ model, range, selected, upside });
+    }
+  });
+
+  return table;
+}
+
 function normalizeKeys(obj: Record<string, any>): Record<string, any> {
   const normalized: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -706,18 +731,26 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-/*
+
 const test = async () => {
+  /*
   let data: StatementType[] = await getStockFinancialsV2(
     "AP.BK",
     "Ratios",
     "Annual"
   );
   console.log(data[0]);
-
+*/
   //let data1 = await getStockStatistics("AP.BK");
   //console.log(data1);
+
+  //const fairValueData = await getFairValueTable("AP.BK");
+  //console.log(fairValueData);
+
+  const data = await fetchHtmlSafe(
+    "https://www.gurufocus.com/term/wacc/BKK%3AAP?utm_source=chatgpt.com"
+  );
+  console.log("data : ", data);
 };
 
 test();
-*/

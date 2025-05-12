@@ -22,18 +22,4 @@ async function getData() {
 getData();
 ```
 
-let url = "";
-
-if (
-symbol.endsWith(".BK") ||
-symbol.startsWith("BKK:") ||
-symbol.length === 3
-) {
-// หุ้นไทย เช่น AOT
-const ticker = symbol.replace(".BK", "").replace("BKK:", "").toUpperCase();
-url = `https://stockanalysis.com/quote/bkk/${ticker}/`;
-} else {
-// หุ้นอเมริกา เช่น AAPL
-url = `https://stockanalysis.com/quote/${symbol}/`;
-}
-อัพเดตข้อมูล Ratios
+Function Getting data from outsource

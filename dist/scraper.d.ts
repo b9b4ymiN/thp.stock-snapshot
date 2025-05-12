@@ -1,9 +1,11 @@
 import { FinancialPeriodType, FinancialStatement, StatementType } from "./types/FinancialStatement";
 import { StockStatistics } from "./types/StockStatistics";
 import { StockOverview } from "./types/StockOverview";
+import { FairValueItem } from "./types/FairValueItem";
 export type Market = "bkk" | "us";
 export declare function getStockOverview(rawSymbol: string): Promise<StockOverview>;
 export declare function getStockFinancials(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<FinancialStatement>;
 export declare function getStockStatistics(rawSymbol: string): Promise<StockStatistics>;
 export declare function getStockFinancialsV2(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<StatementType[]>;
+export declare function getFairValueTable(symbol: string): Promise<FairValueItem[]>;
 export declare function fetchHtmlSafe(url: string): Promise<string>;

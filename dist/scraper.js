@@ -40,6 +40,7 @@ exports.getStockOverview = getStockOverview;
 exports.getStockFinancials = getStockFinancials;
 exports.getStockStatistics = getStockStatistics;
 exports.getStockFinancialsV2 = getStockFinancialsV2;
+exports.getFairValueTable = getFairValueTable;
 exports.fetchHtmlSafe = fetchHtmlSafe;
 const axios_1 = __importDefault(require("axios"));
 const cheerio = __importStar(require("cheerio"));
@@ -641,6 +642,23 @@ async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodT
     });
     return result;
 }
+async function getFairValueTable(symbol) {
+    let url = `https://valueinvesting.io/${symbol}/valuation/intrinsic-value`; // <-- US ต้องใช้ /stocks/
+    const html = await fetchHtmlSafe(url);
+    const $ = cheerio.load(html);
+    const table = [];
+    $("table.each_summary tbody tr.hover_gray").each((_, row) => {
+        const cells = $(row).find("td");
+        const model = $(cells[0]).text().trim();
+        const range = $(cells[1]).text().trim();
+        const selected = parseFloat($(cells[2]).text().trim());
+        const upside = $(cells[3]).text().trim();
+        if (model && range && !isNaN(selected)) {
+            table.push({ model, range, selected, upside });
+        }
+    });
+    return table;
+}
 function normalizeKeys(obj) {
     const normalized = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -688,18 +706,20 @@ async function fetchHtmlSafe(url) {
     }
     return res.data;
 }
-/*
 const test = async () => {
-  let data: StatementType[] = await getStockFinancialsV2(
-    "AP.BK",
-    "Ratios",
-    "Annual"
-  );
-  console.log(data[0]);
-
-  //let data1 = await getStockStatistics("AP.BK");
-  //console.log(data1);
+    /*
+    let data: StatementType[] = await getStockFinancialsV2(
+      "AP.BK",
+      "Ratios",
+      "Annual"
+    );
+    console.log(data[0]);
+  */
+    //let data1 = await getStockStatistics("AP.BK");
+    //console.log(data1);
+    //const fairValueData = await getFairValueTable("AP.BK");
+    //console.log(fairValueData);
+    const data = await fetchHtmlSafe("https://www.gurufocus.com/term/wacc/BKK%3AAP?utm_source=chatgpt.com");
+    console.log("data : ", data);
 };
-
 test();
-*/
