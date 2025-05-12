@@ -602,7 +602,8 @@ async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodT
                         key.includes("TaxRate") ||
                         key.includes("Turnover") ||
                         key.includes("RO") ||
-                        key.includes("Payout")) {
+                        key.includes("Payout") ||
+                        key.includes("ForwardPE")) {
                         values.push(parseFloat(num.toFixed(2)));
                     }
                     else {
@@ -701,4 +702,4 @@ const test = async () => {
 };
 
 test();
-*/ 
+*/
