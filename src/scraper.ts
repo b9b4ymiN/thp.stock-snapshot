@@ -1257,6 +1257,7 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
+
 /*
 const test = async () => {
   
@@ -1273,6 +1274,5 @@ const test = async () => {
   //const fairValueData = await getFairValueTable("AP.BK");
   //console.log(fairValueData);
 };
-
 test();
 */
