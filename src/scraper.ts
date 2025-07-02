@@ -33,16 +33,35 @@ function cleanSymbol(rawSymbol: string): string {
 export async function getStockOverview(
   rawSymbol: string
 ): Promise<StockOverview> {
-  const market = detectMarket(rawSymbol);
-  const symbol = rawSymbol
-    .replace(/^BKK:/, "") // ตัด BKK: ออก
-    .replace(/\.BK$/, ""); // ตัด .BK ออก
+  const marketMap = {
+    ".BK": "bkk",
+    ".VN": "hose",
+    ".IN": "nse",
+    ".JP": "tyo",
+    ".MX": "bmv",
+    ".ID": "idx",
+  };
+
+  let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
+  let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
+
+  // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+  for (const suffix in marketMap) {
+    if (rawSymbol.toUpperCase().endsWith(suffix)) {
+      market = marketMap[suffix as keyof typeof marketMap];
+      // ลบ Suffix ออกจากท้ายของ symbol
+      symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+      break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
+    }
+  }
+
+  // ลบ Prefix 'BKK:' ออก (ถ้ามี)
+  symbol = symbol.replace(/^BKK:/i, "");
 
   let url =
-    market == "bkk"
-      ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-      : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
-
+    market === "us"
+      ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
+      : `https://stockanalysis.com/quote/${market}/${symbol}/`;
   const { data } = await axios.get(url);
   const $ = cheerio.load(data);
 
@@ -543,14 +562,37 @@ export async function getStockStatisticsOLD(
 export async function getStockStatistics(
   rawSymbol: string
 ): Promise<StockStatistics> {
-  const symbol = rawSymbol
-    .replace(/^BKK:/, "") // ตัด BKK: ออก
-    .replace(/\.BK$/, ""); // ตัด .BK ออก
-  let market = detectMarket(rawSymbol);
-  let url =
+  // ตารางจับคู่ Suffix กับ Market Code ของเว็บไซต์
+  const marketMap = {
+    ".BK": "bkk",
+    ".VN": "hose",
+    ".IN": "nse",
+    ".JP": "tyo",
+    ".MX": "bmv",
+    ".ID": "idx",
+  };
+
+  let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
+  let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
+
+  // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+  for (const suffix in marketMap) {
+    if (rawSymbol.toUpperCase().endsWith(suffix)) {
+      market = marketMap[suffix as keyof typeof marketMap];
+      // ลบ Suffix ออกจากท้ายของ symbol
+      symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+      break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
+    }
+  }
+
+  // ลบ Prefix 'BKK:' ออก (ถ้ามี)
+  symbol = symbol.replace(/^BKK:/i, "");
+
+  // สร้าง URL ตาม market ที่ตรวจจับได้
+  const url =
     market === "us"
-      ? `https://stockanalysis.com/stocks/${symbol}/statistics/`
-      : `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
+      ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/statistics/`
+      : `https://stockanalysis.com/quote/${market}/${symbol}/statistics/`;
 
   //https://stockanalysis.com/quote/bkk/AP/statistics/
   //https://stockanalysis.com/stocks/aapl/statistics/
@@ -878,13 +920,35 @@ export async function getStockFinancialsV2(
   statementType: StatementType = "Income",
   periodType: FinancialPeriodType = "Annual"
 ): Promise<StatementType[]> {
-  const symbol = rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "");
-  const market = detectMarket(rawSymbol);
+  const marketMap = {
+    ".BK": "bkk",
+    ".VN": "hose",
+    ".IN": "nse",
+    ".JP": "tyo",
+    ".MX": "bmv",
+    ".ID": "idx",
+  };
+
+  let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
+  let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
+
+  // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+  for (const suffix in marketMap) {
+    if (rawSymbol.toUpperCase().endsWith(suffix)) {
+      market = marketMap[suffix as keyof typeof marketMap];
+      // ลบ Suffix ออกจากท้ายของ symbol
+      symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+      break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
+    }
+  }
+
+  // ลบ Prefix 'BKK:' ออก (ถ้ามี)
+  symbol = symbol.replace(/^BKK:/i, "");
 
   let baseUrl =
     market === "bkk"
-      ? `https://stockanalysis.com/quote/bkk/${symbol}/`
-      : `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`;
+      ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
+      : `https://stockanalysis.com/quote/${market}/${symbol}/`;
 
   let url = `${baseUrl}financials/`;
   if (statementType === "Balance Sheet")
@@ -1247,8 +1311,8 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
     !res.data ||
     res.status >= 400 ||
     typeof res.data !== "string" ||
-    res.data.includes("Page Not Found") //|| // fallback content
-    //!res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
+    res.data.includes("Page Not Found"); //|| // fallback content
+  //!res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
 
   if (isErrorPage) {
     console.log("url error : ", url);
@@ -1257,20 +1321,19 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-
 /*
 const test = async () => {
   
   let data: StatementType[] = await getStockFinancialsV2(
-    "AP.BK",
+    "BBCA.ID",
     "Ratios",
     "Annual"
   );
   console.log(data[0]);
 
-  let data1 = await getStockStatistics("AP.BK");
-  console.log(data1);
-
+  //BBCA = ID
+  //let data1 = await getStockOverview("BBCA.ID");
+  //console.log(data1);
   //const fairValueData = await getFairValueTable("AP.BK");
   //console.log(fairValueData);
 };
