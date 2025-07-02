@@ -208,7 +208,7 @@ export async function getStockFinancials(
   } as FinancialStatement;
 }
 
-export async function getStockStatistics(
+export async function getStockStatisticsOLD(
   rawSymbol: string
 ): Promise<StockStatistics> {
   const symbol = rawSymbol
@@ -309,7 +309,339 @@ export async function getStockStatistics(
         const key = $(row).find("td").first().text().trim();
         const value = $(row).find("td").last().text().trim();
 
-        console.log("🧠 key =", key, value); // เพิ่มตรงนี้ดู output จริง
+        //console.log("🧠 key =", key, value); // เพิ่มตรงนี้ดู output จริง
+
+        const numericValue = parseValue(value);
+
+        switch (key) {
+          case "Market Cap":
+            statistics.marketCap = numericValue;
+            break;
+          case "Enterprise Value":
+            statistics.enterpriseValue = numericValue;
+            break;
+          case "Earnings Date":
+            statistics.earningsDate = value;
+            break;
+          case "Ex-Dividend Date":
+            statistics.exDividendDate = value;
+            break;
+          case "Shares Outstanding":
+            statistics.sharesOutstanding = numericValue;
+            break;
+          case "Shares Change (YoY)":
+            statistics.sharesChangeYoY = numericValue;
+            break;
+          case "Shares Change (QoQ)":
+            statistics.sharesChangeQoQ = numericValue;
+            break;
+          case "Owned by Institutions (%)":
+            statistics.ownedByInstitutions = numericValue;
+            break;
+          case "PE Ratio":
+            statistics.peRatio = numericValue;
+            break;
+          case "Forward PE":
+            statistics.forwardPERatio = numericValue;
+            break;
+          case "PS Ratio":
+            statistics.psRatio = numericValue;
+            break;
+          case "PB Ratio":
+            statistics.pbRatio = numericValue;
+            break;
+          case "P/TBV Ratio":
+            statistics.ptbvRatio = numericValue;
+            break;
+          case "P/FCF Ratio":
+            statistics.pfcfRatio = numericValue;
+            break;
+          case "P/OCF Ratio":
+            statistics.pocfRatio = numericValue;
+            break;
+          case "PEG Ratio":
+            statistics.pegRatio = numericValue;
+            break;
+          case "EV / Earnings":
+            statistics.evEarnings = numericValue;
+            break;
+          case "EV / Sales":
+            statistics.evSales = numericValue;
+            break;
+          case "EV / EBITDA":
+            statistics.evEbitda = numericValue;
+            break;
+          case "EV / EBIT":
+            statistics.evEbit = numericValue;
+            break;
+          case "EV / FCF":
+            statistics.evFcf = numericValue;
+            break;
+          case "Current Ratio":
+            statistics.currentRatio = numericValue;
+            break;
+          case "Quick Ratio":
+            statistics.quickRatio = numericValue;
+            break;
+          case "Debt / Equity":
+            statistics.debtToEquity = numericValue;
+            break;
+          case "Debt / EBITDA":
+            statistics.debtToEbitda = numericValue;
+            break;
+          case "Debt / FCF":
+            statistics.debtToFcf = numericValue;
+            break;
+          case "Interest Coverage":
+            statistics.interestCoverage = numericValue;
+            break;
+          case "Return on Equity (ROE)":
+            statistics.returnOnEquity = numericValue;
+            break;
+          case "Return on Assets (ROA)":
+            statistics.returnOnAssets = numericValue;
+            break;
+          case "Return on Invested Capital (ROIC)":
+            statistics.returnOnInvestedCapital = numericValue;
+            break;
+          case "Return on Capital Employed (ROCE)":
+            statistics.returnOnCapitalEmployed = numericValue;
+            break;
+          case "Beta (5Y)":
+            statistics.beta5Y = numericValue;
+            break;
+          case "52-Week Price Change":
+            statistics.priceChange52W = numericValue;
+            break;
+          case "50-Day Moving Average":
+            statistics.movingAverage50D = numericValue;
+            break;
+          case "200-Day Moving Average":
+            statistics.movingAverage200D = numericValue;
+            break;
+          case "Relative Strength Index (RSI)":
+            statistics.rsi = numericValue;
+            break;
+          case "Average Volume (20 Days)":
+            statistics.averageVolume20D = numericValue;
+            break;
+          case "Revenue":
+            statistics.revenue = numericValue;
+            break;
+          case "Gross Profit":
+            statistics.grossProfit = numericValue;
+            break;
+          case "Operating Income":
+            statistics.operatingIncome = numericValue;
+            break;
+          case "Pretax Income":
+            statistics.pretaxIncome = numericValue;
+            break;
+          case "Net Income":
+            statistics.netIncome = numericValue;
+            break;
+          case "EBITDA":
+            statistics.ebitda = numericValue;
+            break;
+          case "EBIT":
+            statistics.ebit = numericValue;
+            break;
+          case "Earnings Per Share (EPS)":
+            statistics.eps = numericValue;
+            break;
+          case "Cash & Cash Equivalents":
+            statistics.cash = numericValue;
+            break;
+          case "Total Debt":
+            statistics.totalDebt = numericValue;
+            break;
+          case "Net Cash":
+            statistics.netCash = numericValue;
+            break;
+          case "Net Cash Per Share":
+            statistics.netCashPerShare = numericValue;
+            break;
+          case "Equity (Book Value)":
+            statistics.bookValue = numericValue;
+            break;
+          case "Book Value Per Share":
+            statistics.bookValuePerShare = numericValue;
+            break;
+          case "Working Capital":
+            statistics.workingCapital = numericValue;
+            break;
+          case "Operating Cash Flow":
+            statistics.operatingCashFlow = numericValue;
+            break;
+          case "Capital Expenditures":
+            statistics.capitalExpenditures = numericValue;
+            break;
+          case "Free Cash Flow":
+            statistics.freeCashFlow = numericValue;
+            break;
+          case "FCF Per Share":
+            statistics.freeCashFlowPerShare = numericValue;
+            break;
+          case "Gross Margin":
+            statistics.grossMargin = numericValue;
+            break;
+          case "Operating Margin":
+            statistics.operatingMargin = numericValue;
+            break;
+          case "Pretax Margin":
+            statistics.pretaxMargin = numericValue;
+            break;
+          case "Profit Margin":
+            statistics.profitMargin = numericValue;
+            break;
+          case "EBITDA Margin":
+            statistics.ebitdaMargin = numericValue;
+            break;
+          case "EBIT Margin":
+            statistics.ebitMargin = numericValue;
+            break;
+          case "FCF Margin":
+            statistics.fcfMargin = numericValue;
+            break;
+          case "Dividend Per Share":
+            statistics.dividendPerShare = numericValue;
+            break;
+          case "Dividend Yield":
+            statistics.dividendYield = numericValue;
+            break;
+          case "Dividend Growth (YoY)":
+            statistics.dividendGrowth = numericValue;
+            break;
+          case "Payout Ratio":
+            statistics.payoutRatio = numericValue;
+            break;
+          case "Buyback Yield":
+            statistics.buybackYield = numericValue;
+            break;
+          case "Shareholder Yield":
+            statistics.shareholderYield = numericValue;
+            break;
+          case "Earnings Yield":
+            statistics.earningsYield = numericValue;
+            break;
+          case "FCF Yield":
+            statistics.fcfYield = numericValue;
+            break;
+          case "Altman Z-Score":
+            statistics.altmanZScore = numericValue;
+            break;
+          case "Piotroski F-Score":
+            statistics.piotroskiFScore = numericValue;
+            break;
+        }
+      });
+  });
+
+  return statistics;
+}
+
+export async function getStockStatistics(
+  rawSymbol: string
+): Promise<StockStatistics> {
+  const symbol = rawSymbol
+    .replace(/^BKK:/, "") // ตัด BKK: ออก
+    .replace(/\.BK$/, ""); // ตัด .BK ออก
+  let market = detectMarket(rawSymbol);
+  let url =
+    market === "us"
+      ? `https://stockanalysis.com/stocks/${symbol}/statistics/`
+      : `https://stockanalysis.com/quote/bkk/${symbol}/statistics/`; // <-- US ต้องใช้ /stocks/
+
+  //https://stockanalysis.com/quote/bkk/AP/statistics/
+  //https://stockanalysis.com/stocks/aapl/statistics/
+
+  const html = await fetchHtmlSafe(url);
+  const $ = cheerio.load(html);
+
+  const statistics: StockStatistics = {
+    marketCap: null,
+    enterpriseValue: null,
+    earningsDate: null,
+    exDividendDate: null,
+    sharesOutstanding: null,
+    sharesChangeYoY: null,
+    sharesChangeQoQ: null,
+    ownedByInstitutions: null,
+    peRatio: null,
+    forwardPERatio: null,
+    psRatio: null,
+    pbRatio: null,
+    ptbvRatio: null,
+    pfcfRatio: null,
+    pocfRatio: null,
+    pegRatio: null,
+    evEarnings: null,
+    evSales: null,
+    evEbitda: null,
+    evEbit: null,
+    evFcf: null,
+    currentRatio: null,
+    quickRatio: null,
+    debtToEquity: null,
+    debtToEbitda: null,
+    debtToFcf: null,
+    interestCoverage: null,
+    returnOnEquity: null,
+    returnOnAssets: null,
+    returnOnInvestedCapital: null,
+    returnOnCapitalEmployed: null,
+    beta5Y: null,
+    priceChange52W: null,
+    movingAverage50D: null,
+    movingAverage200D: null,
+    rsi: null,
+    averageVolume20D: null,
+    revenue: null,
+    grossProfit: null,
+    operatingIncome: null,
+    pretaxIncome: null,
+    netIncome: null,
+    ebitda: null,
+    ebit: null,
+    eps: null,
+    cash: null,
+    totalDebt: null,
+    netCash: null,
+    netCashPerShare: null,
+    bookValue: null,
+    bookValuePerShare: null,
+    workingCapital: null,
+    operatingCashFlow: null,
+    capitalExpenditures: null,
+    freeCashFlow: null,
+    freeCashFlowPerShare: null,
+    grossMargin: null,
+    operatingMargin: null,
+    pretaxMargin: null,
+    profitMargin: null,
+    ebitdaMargin: null,
+    ebitMargin: null,
+    fcfMargin: null,
+    dividendPerShare: null,
+    dividendYield: null,
+    dividendGrowth: null,
+    payoutRatio: null,
+    buybackYield: null,
+    shareholderYield: null,
+    earningsYield: null,
+    fcfYield: null,
+    altmanZScore: null,
+    piotroskiFScore: null,
+  };
+
+  $("table.w-full").each((_, table) => {
+    $(table)
+      .find("tr")
+      .each((_, row) => {
+        const key = $(row).find("td").first().text().trim();
+        const value = $(row).find("td").last().text().trim();
+
+        //console.log("🧠 key =", key, value); // เพิ่มตรงนี้ดู output จริง
 
         const numericValue = parseValue(value);
 
@@ -753,7 +1085,7 @@ export async function getValuation(
     else if (label.includes("WACC")) result.wacc = value;
   });
 
-  console.log("data : ", result);
+  //console.log("data : ", result);
   await browser.close();
   return result;
 }
@@ -915,8 +1247,8 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
     !res.data ||
     res.status >= 400 ||
     typeof res.data !== "string" ||
-    res.data.includes("Page Not Found") || // fallback content
-    !res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
+    res.data.includes("Page Not Found") //|| // fallback content
+    //!res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
 
   if (isErrorPage) {
     console.log("url error : ", url);
@@ -925,7 +1257,6 @@ export async function fetchHtmlSafe(url: string): Promise<string> {
 
   return res.data;
 }
-
 /*
 const test = async () => {
   
@@ -935,17 +1266,12 @@ const test = async () => {
     "Annual"
   );
   console.log(data[0]);
- 
-  //let data1 = await getStockStatistics("AP.BK");
-  //console.log(data1);
+
+  let data1 = await getStockStatistics("AP.BK");
+  console.log(data1);
 
   //const fairValueData = await getFairValueTable("AP.BK");
   //console.log(fairValueData);
-
-  const data = await fetchHtmlSafe(
-    "https://www.gurufocus.com/term/wacc/BKK%3AAP?utm_source=chatgpt.com"
-  );
-  console.log("data : ", data);
 };
 
 test();
