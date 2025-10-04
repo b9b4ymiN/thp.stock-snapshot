@@ -1,6 +1,6 @@
 {
   "name": "stock-snapshot",
-  "version": "6.1.1",
+  "version": "6.1.2",
   "description": "A comprehensive TypeScript library for fetching financial data of publicly traded companies across multiple international markets. Get real-time stock statistics, historical financials, and advanced valuation metrics.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
