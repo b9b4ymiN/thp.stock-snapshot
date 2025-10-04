@@ -1,6 +1,12 @@
-# Financial Data Scraper for Node.js
+# Financial Data Scraper
 
 This project is a powerful and versatile web scraper built with Node.js and TypeScript for fetching a wide range of financial data for publicly traded companies across multiple international markets. It uses a combination of `axios` for static HTML fetching and `puppeteer` for dynamic, JavaScript-rendered content.
+
+#### (Recent updates : 2025-10-04)
+
+[1] Update "getStockOverview" function fix issuse and add many  fields: `sharesOutstanding`, `forwardPERatio`, `volume`, `open`, `previousClose`, `daysRange`, `beta`, `analysts`, and raw `priceTarget`.
+- Parsed numeric fields where applicable (e.g., `eps`, `peRatio`, `forwardPERatio`, `volume`, `open`, `previousClose`, `beta`, `priceTargetPrice`, `upsidePercent`) so numbers are returned as `number` types when possible.
+[2] Fix "getFairValueTable" function. 
 
 ## 🚀 Features
 
@@ -11,9 +17,6 @@ This project is a powerful and versatile web scraper built with Node.js and Type
   - Key Ratios and Statistics (ROE, P/B, Debt/Equity, etc.).
   - Advanced Valuation Metrics (WACC, ROIC, DCF Models).
 - **Multiple Data Sources:** Aggregates data from leading financial websites:
-  - `stockanalysis.com`
-  - `valueinvesting.io`
-  - `gurufocus.com`
 - **Multi-Market Support:** Intelligently handles symbols from various stock exchanges (e.g., NYSE, NASDAQ, SET, HOSE, NSE) using common suffixes (`.BK`, `.VN`, `.IN`, etc.).
 - **Flexible Time Periods:** Fetches financial data on an `Annual`, `Quarterly`, or `TTM` (Trailing Twelve Months) basis.
 - **Robust & Resilient:** Uses `puppeteer-extra-plugin-stealth` to bypass common anti-scraping measures. Includes safe HTML fetching to handle 404 errors gracefully.
@@ -114,7 +117,9 @@ console.log(overview);
 }
 ```
 
-\<hr\>
+
+
+<hr\>
 
 ### `getStockFinancialsV2(rawSymbol, statementType, periodType)`
 
@@ -158,7 +163,7 @@ console.log(annualRatios[0]); // Data for the most recent year
 }
 ```
 
-\<hr\>
+<hr\>
 
 ### `getStockStatistics(rawSymbol)`
 
@@ -199,11 +204,38 @@ console.log(stats);
 }
 ```
 
-\<hr\>
+<hr\>
 
 ### `getValuation(symbol)`
 
 Scrapes various intrinsic value models from `valueinvesting.io`. **This function uses Puppeteer** and may be slower.
+
+
+### `getAlphaValue(rawSymbol)`
+
+Fetches alpha-spread intrinsic/analyst values for a symbol and extracts several intrinsic value metrics found on the Alpha Spread summary page. This helper parses both the "intrinsic value" block items (IntrinsicValue, Low/Avg/High forecasts) and the DCF/Relative value links when present.
+
+- **`rawSymbol: string`**: The stock symbol (e.g., `'AAPL'`, `'AP.BK'`).
+- **Returns**: `Promise<{ IntrinsicValue:number|null; LowForecast:number|null; AvgForecast:number|null; HighForecast:number|null; DCFValue:number|null; Currency:string|null; RelativeValue:number|null; RelativeCurrency:string|null }>`
+
+Example usage:
+
+```ts
+import { getAlphaValue } from "./scraper";
+
+const data = await getAlphaValue("AAPL");
+console.log(data);
+// => {
+//    IntrinsicValue: 166.01,
+//    LowForecast: 176.75,
+//    AvgForecast: 250.05,
+//    HighForecast: 325.5,
+//    DCFValue: 132.74,
+//    Currency: 'USD',
+//    RelativeValue: 199.28,
+//    RelativeCurrency: 'USD'
+// }
+```
 
 - **`symbol: string`**: The stock symbol.
 - **Returns**: `Promise<valuationTableModel>`
@@ -253,42 +285,15 @@ console.log(valuation);
 }
 ```
 
-\<hr\>
+<hr\>
 
-### `getWaccAndRoicV3(symbol)`
+### `getWaccAndRoicV3(symbol)` terminate : Cloudflare Blocked.
 
-Scrapes detailed WACC (Weighted Average Cost of Capital) and ROIC (Return on Invested Capital) calculations from `gurufocus.com`. **This function uses Puppeteer** and may be slower.
 
-- **`symbol: string`**: The stock symbol.
-- **Returns**: `Promise<GuruWACCModel>`
+## 💖 Donate / Tip
 
-**Example Usage:**
+If you find this project useful and want to support further development, you can tip me in crypto (Solana):
 
-```typescript
-import { getWaccAndRoicV3 } from "./scraper";
+Solana (SOL) address: `D7cXmvrapfeC4CKnXEzMdrkRu5SWLHagUbeLMS3VA5wY`
 
-const waccData = await getWaccAndRoicV3("AAPL");
-console.log(waccData);
-```
-
-**Sample Output (`GuruWACCModel`):**
-
-```json
-{
-  "symbol": "AAPL",
-  "marketCapMil": 3257850.56,
-  "bookValueDebtMil": 134591,
-  "weightEquity": 0.96,
-  "weightDebt": 0.04,
-  "taxRate": 14.71,
-  "costOfEquity": 8.87,
-  "riskFreeRate": 4.25,
-  "beta": 1.28,
-  "marketPremium": 3.61,
-  "costOfDebt": 4.14,
-  "interestExpense": 5576,
-  "totalDebt": 134591,
-  "wacc": 8.64,
-  "roic": 57.75
-}
-```
+Thank you for your support!
