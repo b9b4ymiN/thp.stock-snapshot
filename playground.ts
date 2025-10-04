@@ -1,7 +1,7 @@
-import { getStockOverview } from "./dist"; // << ชี้มาที่ dist ได้เลย
+import { getStockStatistics } from "./dist"; // << ชี้มาที่ dist ได้เลย
 
 async function run() {
-  const data = await getStockOverview("AAPL");
+  const data = await getStockStatistics("AAPL");
   console.log(data);
 }
 

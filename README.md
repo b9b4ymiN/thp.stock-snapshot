@@ -1,294 +1,307 @@
-# Financial Data Scraper
+# Stock Snapshot
 
-This project is a powerful and versatile web scraper built with Node.js and TypeScript for fetching a wide range of financial data for publicly traded companies across multiple international markets. It uses a combination of `axios` for static HTML fetching and `puppeteer` for dynamic, JavaScript-rendered content.
+[![npm version](https://badge.fury.io/js/stock-snapshot.svg)](https://badge.fury.io/js/stock-snapshot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-#### (Recent updates : 2025-10-04)
+A comprehensive Node.js library for fetching financial data of publicly traded companies across multiple international markets. Built with TypeScript and designed for reliability, speed, and ease of use.
 
-[1] Update "getStockOverview" function fix issuse and add many  fields: `sharesOutstanding`, `forwardPERatio`, `volume`, `open`, `previousClose`, `daysRange`, `beta`, `analysts`, and raw `priceTarget`.
-- Parsed numeric fields where applicable (e.g., `eps`, `peRatio`, `forwardPERatio`, `volume`, `open`, `previousClose`, `beta`, `priceTargetPrice`, `upsidePercent`) so numbers are returned as `number` types when possible.
-[2] Fix "getFairValueTable" function. 
+## ✨ Features
 
-## 🚀 Features
+- **📊 Real-Time Data**: Current stock prices, market cap, trading volume, and key metrics
+- **📈 Historical Financials**: Income statements, balance sheets, cash flow statements, and financial ratios
+- **🌍 Multi-Market Support**: US (NASDAQ/NYSE), Thailand (SET), Vietnam (HOSE), India (NSE), and more
+- **⚡ Fast & Reliable**: Intelligent caching and error handling
+- **🔍 Advanced Analytics**: Valuation models, WACC calculations, and intrinsic value estimates
+- **📱 TypeScript Native**: Full type safety with comprehensive interfaces
+- **🛡️ Production Ready**: Built-in retry logic and graceful error handling
 
-- **Comprehensive Data:** Scrape everything from real-time stock prices to detailed historical financial statements.
-- **Multiple Data Points:**
-  - Current Stock Overview (price, market cap, P/E, etc.).
-  - Historical Financials (Income Statement, Balance Sheet, Cash Flow).
-  - Key Ratios and Statistics (ROE, P/B, Debt/Equity, etc.).
-  - Advanced Valuation Metrics (WACC, ROIC, DCF Models).
-- **Multiple Data Sources:** Aggregates data from leading financial websites:
-- **Multi-Market Support:** Intelligently handles symbols from various stock exchanges (e.g., NYSE, NASDAQ, SET, HOSE, NSE) using common suffixes (`.BK`, `.VN`, `.IN`, etc.).
-- **Flexible Time Periods:** Fetches financial data on an `Annual`, `Quarterly`, or `TTM` (Trailing Twelve Months) basis.
-- **Robust & Resilient:** Uses `puppeteer-extra-plugin-stealth` to bypass common anti-scraping measures. Includes safe HTML fetching to handle 404 errors gracefully.
-- **Modern Tech Stack:** Written in TypeScript with clear, typed interfaces for all data models.
-
-## ⚠️ Disclaimer
-
-This is a web scraping tool. Its functionality is entirely dependent on the HTML structure of the websites it scrapes. **If the source websites update their layout, this scraper will likely break.** Use this tool at your own risk and be prepared for maintenance.
-
-## 🛠️ Setup
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v16 or higher recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+## 🚀 Quick Start
 
 ### Installation
 
-1.  **Clone the repository:**
+```bash
+npm install stock-snapshot
+```
 
-    ```bash
-    git clone <your-repo-url>
-    cd <your-repo-folder>
-    ```
+### Basic Usage
 
-2.  **Install dependencies:**
+```typescript
+import { getStockStatistics, getStockFinancialsV2 } from 'stock-snapshot';
 
-    ```bash
-    npm install
-    ```
+// Get comprehensive stock statistics
+const stats = await getStockStatistics('AAPL');
+console.log(`Market Cap: $${stats.marketCap?.toLocaleString()}`);
+console.log(`P/E Ratio: ${stats.peRatio}`);
 
-    or
-
-    ```bash
-    yarn install
-    ```
-
-    > **Note:** The first time you run a function that uses `puppeteer`, it will download a recent version of the Chromium browser (\~170MB) to automate its tasks.
-
-## Symbol Formatting
-
-The scraper is designed to recognize stock symbols from different markets. Please use the following formats:
-
-- **US Markets (NASDAQ, NYSE):** Use the standard ticker symbol.
-
-  - Example: `AAPL`, `GOOGL`, `MSFT`
-
-- **International Markets:** Use the ticker symbol followed by its common market suffix.
-
-  - **Thailand (SET):** `AP.BK`, `PTT.BK`
-  - **Vietnam (HOSE):** `VCB.VN`
-  - **India (NSE):** `RELIANCE.IN`
-  - **Indonesia (IDX):** `BBCA.ID`
-  - **Japan (TYO):** `7203.JP`
-  - **Mexico (BMV):** `AMXL.MX`
-
-- **Alternative BKK Format:** The prefix `BKK:` is also supported for Thai stocks.
-
-  - Example: `BKK:AP`
-
----
+// Get annual income statement data
+const financials = await getStockFinancialsV2('MSFT', 'Income', 'Annual');
+console.log('Recent Revenue:', financials[0]?.revenue);
+```
 
 ## 📖 API Reference
 
-All functions are asynchronous and return a `Promise`.
+### Stock Statistics
 
-### `getStockOverview(rawSymbol)`
-
-Fetches a real-time overview of a stock, including its current price, market cap, and key TTM figures.
-
-- **`rawSymbol: string`**: The stock symbol (e.g., `'AAPL'`, `'AP.BK'`).
-- **Returns**: `Promise<StockOverview>`
-
-**Example Usage:**
+Get comprehensive financial metrics and ratios for any stock.
 
 ```typescript
-import { getStockOverview } from "./scraper";
-
-const overview = await getStockOverview("MSFT");
-console.log(overview);
+getStockStatistics(symbol: string): Promise<StockStatistics>
 ```
 
-**Sample Output (`StockOverview`):**
+**Parameters:**
+- `symbol` - Stock ticker symbol (e.g., 'AAPL', 'AP.BK', 'VCB.VN')
 
-```json
-{
-  "price": 444.85,
-  "marketCap": "3.31T",
-  "revenue": "236.58B",
-  "netIncome": "86.16B",
-  "eps": "11.63",
-  "peRatio": "38.25",
-  "dividend": "3.00 (0.67%)",
-  "exDividendDate": "May 15, 2025",
-  "earningsDate": "Jul 22, 2025",
-  "range52Week": "309.49 - 452.75",
-  "performance1Y": "+32.11%"
+**Returns:** Object containing 60+ financial metrics including:
+- Market valuation (market cap, enterprise value)
+- Profitability ratios (ROE, ROA, profit margins)
+- Liquidity ratios (current ratio, quick ratio)
+- Valuation multiples (P/E, P/B, EV/EBITDA)
+- Growth metrics and technical indicators
+
+**Example:**
+```typescript
+const stats = await getStockStatistics('TSLA');
+console.log({
+  marketCap: stats.marketCap,        // 800000000000
+  peRatio: stats.peRatio,            // 65.4
+  returnOnEquity: stats.returnOnEquity, // 28.1
+  debtToEquity: stats.debtToEquity   // 0.17
+});
+```
+
+### Historical Financials
+
+Retrieve detailed financial statements across multiple periods.
+
+```typescript
+getStockFinancialsV2(
+  symbol: string, 
+  statementType?: 'Income' | 'Balance Sheet' | 'Cash Flow' | 'Ratios',
+  periodType?: 'Annual' | 'Quarterly' | 'TTM'
+): Promise<FinancialStatement[]>
+```
+
+**Parameters:**
+- `symbol` - Stock ticker symbol
+- `statementType` - Type of financial statement (default: 'Income')
+- `periodType` - Time period for data (default: 'Annual')
+
+**Example:**
+```typescript
+// Get quarterly cash flow data
+const cashFlow = await getStockFinancialsV2('GOOGL', 'Cash Flow', 'Quarterly');
+
+cashFlow.forEach(period => {
+  console.log(`${period.fiscalYear}: Operating Cash Flow = $${period.operatingCashFlow}`);
+});
+
+// Get annual ratios
+const ratios = await getStockFinancialsV2('AMZN', 'Ratios', 'Annual');
+console.log('P/E Ratios by year:', ratios.map(r => r.peRatio));
+```
+
+### Valuation Analysis
+
+Advanced valuation models and intrinsic value calculations.
+
+```typescript
+// DCF and comparable company analysis
+getValuation(symbol: string): Promise<ValuationTableModel>
+
+// Multi-source intrinsic value estimates  
+getAlphaValue(symbol: string): Promise<AlphaValueResult>
+
+// Fair value analysis
+getFairValueTable(symbol: string): Promise<FairValueItem[]>
+```
+
+**Example:**
+```typescript
+// Comprehensive valuation analysis
+const valuation = await getValuation('NVDA');
+console.log(`WACC: ${valuation.wacc}%`);
+console.log('Valuation Methods:', valuation.valuation.map(v => ({
+  method: v.method,
+  fairValue: v.selected,
+  upside: v.upside
+})));
+
+// Get analyst consensus estimates
+const estimates = await getAlphaValue('NVDA');
+console.log({
+  intrinsicValue: estimates.IntrinsicValue,
+  analystTarget: estimates.AvgForecast,
+  dcfValue: estimates.DCFValue
+});
+```
+
+## 🌍 International Markets
+
+The library supports multiple international stock exchanges with automatic market detection:
+
+| Market | Format | Examples |
+|--------|--------|----------|
+| 🇺🇸 US (NASDAQ/NYSE) | `SYMBOL` | `AAPL`, `MSFT`, `GOOGL` |
+| 🇹🇭 Thailand (SET) | `SYMBOL.BK` or `BKK:SYMBOL` | `PTT.BK`, `BKK:AP` |
+| 🇻🇳 Vietnam (HOSE) | `SYMBOL.VN` | `VCB.VN`, `VIC.VN` |
+| 🇮🇳 India (NSE) | `SYMBOL.IN` | `RELIANCE.IN`, `TCS.IN` |
+| 🇮🇩 Indonesia (IDX) | `SYMBOL.ID` | `BBCA.ID`, `TLKM.ID` |
+| 🇯🇵 Japan (TSE) | `SYMBOL.JP` | `7203.JP`, `6758.JP` |
+| 🇲🇽 Mexico (BMV) | `SYMBOL.MX` | `AMXL.MX`, `WALMEX.MX` |
+
+```typescript
+// Examples across different markets
+const usStock = await getStockStatistics('AAPL');
+const thaiStock = await getStockStatistics('PTT.BK');
+const vietnamStock = await getStockStatistics('VCB.VN');
+const indiaStock = await getStockStatistics('RELIANCE.IN');
+```
+
+## 🔧 Configuration & Error Handling
+
+### Environment Variables
+
+```bash
+# Enable debug logging
+DEBUG_SCRAPER=1
+```
+
+### Error Handling
+
+All functions return typed results with proper error handling:
+
+```typescript
+try {
+  const stats = await getStockStatistics('INVALID_SYMBOL');
+} catch (error) {
+  console.error('Failed to fetch data:', error.message);
+}
+
+// Some functions return MaybeError<T> type
+const result = await getStockFinancialsV2('AAPL', 'Income');
+if ('error' in result) {
+  console.error('API Error:', result.message);
+} else {
+  console.log('Success:', result[0]);
 }
 ```
 
+## 📊 Data Types
 
-
-<hr\>
-
-### `getStockFinancialsV2(rawSymbol, statementType, periodType)`
-
-Fetches historical financial data (Income, Balance Sheet, etc.) and returns it as an array of objects, where each object represents a single period. This is the recommended function for financial statements.
-
-- **`rawSymbol: string`**: The stock symbol.
-- **`statementType: StatementType`**: The financial statement to retrieve. Can be `'Income'`, `'Balance Sheet'`, `'Cash Flow'`, or `'Ratios'`. Defaults to `'Income'`.
-- **`periodType: FinancialPeriodType`**: The time period. Can be `'Annual'`, `'Quarterly'`, or `'TTM'`. Defaults to `'Annual'`.
-- **Returns**: `Promise<StatementType[]>` (a generic array of statement objects)
-
-**Example Usage:**
+### StockStatistics Interface
 
 ```typescript
-import { getStockFinancialsV2 } from "./scraper";
-
-const annualRatios = await getStockFinancialsV2("BKK:AP", "Ratios", "Annual");
-console.log(annualRatios[0]); // Data for the most recent year
-```
-
-**Sample Output (One element from the returned array):**
-
-```json
-{
-  "fiscalYear": "FY 2024",
-  "quarter": "ALL",
-  "year": "2024",
-  "PERatio": 6.85,
-  "PSRatio": 0.89,
-  "PBRatio": 0.96,
-  "PFCFRatio": 7.42,
-  "BookValuePerShare": 11.45,
-  "RevenuePerShare": 12.33,
-  "EPS": 1.6,
-  "DividendYieldPercent": 6.54,
-  "ROEPercent": 14.88,
-  "ROAPercent": 6.01,
-  "ROICPercent": 13.04,
-  "CurrentRatio": 2.11,
-  "DebtEquity": 1.13
-  // ... and many more fields
+interface StockStatistics {
+  // Valuation Metrics
+  marketCap: number | null;
+  enterpriseValue: number | null;
+  peRatio: number | null;
+  pbRatio: number | null;
+  psRatio: number | null;
+  
+  // Profitability  
+  returnOnEquity: number | null;
+  returnOnAssets: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  profitMargin: number | null;
+  
+  // Financial Health
+  currentRatio: number | null;
+  debtToEquity: number | null;
+  interestCoverage: number | null;
+  
+  // Growth & Performance
+  revenue: number | null;
+  netIncome: number | null;
+  freeCashFlow: number | null;
+  eps: number | null;
+  
+  // 50+ additional fields...
 }
 ```
 
-<hr\>
-
-### `getStockStatistics(rawSymbol)`
-
-Retrieves a comprehensive table of over 60 different financial statistics and valuation metrics for a stock.
-
-- **`rawSymbol: string`**: The stock symbol.
-- **Returns**: `Promise<StockStatistics>`
-
-**Example Usage:**
+### Financial Statement Types
 
 ```typescript
-import { getStockStatistics } from "./scraper";
+// Base structure for all financial periods
+interface BaseFinancialRow {
+  fiscalYear: string;    // "FY 2024", "Q2 2024"
+  quarter: string;       // "Q1", "Q2", "Q3", "Q4", "ALL"
+  year: string;          // "2024"
+}
 
-const stats = await getStockStatistics("AAPL");
-console.log(stats);
-```
-
-**Sample Output (`StockStatistics`, truncated for brevity):**
-
-```json
-{
-  "marketCap": 3258000000000,
-  "enterpriseValue": 3296000000000,
-  "sharesOutstanding": 15330000000,
-  "peRatio": 32.55,
-  "psRatio": 8.51,
-  "pbRatio": 42.11,
-  "returnOnEquity": 147.2,
-  "returnOnAssets": 27.6,
-  "debtToEquity": 2.29,
-  "interestCoverage": 105.1,
-  "revenue": 383290000000,
-  "netIncome": 97000000000,
-  "eps": 6.42,
-  "dividendYield": 0.46,
-  "payoutRatio": 15.1
-  // ... and many more fields
+// Income statement data
+interface IncomeStatementV2 extends BaseFinancialRow {
+  revenue: number | null;
+  grossProfit: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+  epsBasic: number | null;
+  // ... additional fields
 }
 ```
 
-<hr\>
+## ⚠️ Important Notes
 
-### `getValuation(symbol)`
+### Rate Limiting & Best Practices
 
-Scrapes various intrinsic value models from `valueinvesting.io`. **This function uses Puppeteer** and may be slower.
-
-
-### `getAlphaValue(rawSymbol)`
-
-Fetches alpha-spread intrinsic/analyst values for a symbol and extracts several intrinsic value metrics found on the Alpha Spread summary page. This helper parses both the "intrinsic value" block items (IntrinsicValue, Low/Avg/High forecasts) and the DCF/Relative value links when present.
-
-- **`rawSymbol: string`**: The stock symbol (e.g., `'AAPL'`, `'AP.BK'`).
-- **Returns**: `Promise<{ IntrinsicValue:number|null; LowForecast:number|null; AvgForecast:number|null; HighForecast:number|null; DCFValue:number|null; Currency:string|null; RelativeValue:number|null; RelativeCurrency:string|null }>`
-
-Example usage:
-
-```ts
-import { getAlphaValue } from "./scraper";
-
-const data = await getAlphaValue("AAPL");
-console.log(data);
-// => {
-//    IntrinsicValue: 166.01,
-//    LowForecast: 176.75,
-//    AvgForecast: 250.05,
-//    HighForecast: 325.5,
-//    DCFValue: 132.74,
-//    Currency: 'USD',
-//    RelativeValue: 199.28,
-//    RelativeCurrency: 'USD'
-// }
-```
-
-- **`symbol: string`**: The stock symbol.
-- **Returns**: `Promise<valuationTableModel>`
-
-**Example Usage:**
+- **Implement delays** between requests to avoid overwhelming data sources
+- **Cache results** when possible to minimize API calls
+- **Handle errors gracefully** as data sources may change
 
 ```typescript
-import { getValuation } from "./scraper";
-
-const valuation = await getValuation("AP.BK");
-console.log(valuation);
-```
-
-**Sample Output (`valuationTableModel`):**
-
-```json
-{
-  "symbol": "AP",
-  "marketRiskPremium": 5.5,
-  "costOfEquity": 9.8,
-  "costOfDebt": 3.1,
-  "wacc": 7.2,
-  "valuation": [
-    {
-      "method": "DCF (Growth 5y)",
-      "valueMin": 10.5,
-      "valueMax": 12.8,
-      "selected": 11.6,
-      "upside": 6.4
-    },
-    {
-      "method": "P/E",
-      "valueMin": 9.5,
-      "valueMax": 11.5,
-      "selected": 10.9,
-      "upside": 0
-    },
-    {
-      "method": "EV/EBITDA",
-      "valueMin": 12.1,
-      "valueMax": 14.1,
-      "selected": 13.5,
-      "upside": 23.8
+// Example with rate limiting
+async function fetchMultipleStocks(symbols: string[]) {
+  const results = [];
+  
+  for (const symbol of symbols) {
+    try {
+      const data = await getStockStatistics(symbol);
+      results.push({ symbol, data });
+      
+      // Add delay between requests
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.warn(`Failed to fetch ${symbol}:`, error.message);
     }
-    // ... other valuation models
-  ]
+  }
+  
+  return results;
 }
 ```
 
-<hr\>
+### Browser Requirements
 
-### `getWaccAndRoicV3(symbol)` terminate : Cloudflare Blocked.
+Some functions use Puppeteer and will download Chromium (~170MB) on first use:
 
+```typescript
+// Functions that require browser automation:
+// - getValuation()
+// - getFairValueTable() 
+// - getWaccAndRoicV3() (currently disabled)
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This library fetches financial data from public sources. The accuracy and availability of data depends on external sources. Use this data for informational purposes only and not as the sole basis for investment decisions. Always verify important financial information through official sources.
+
+**Market data may be delayed. Past performance does not guarantee future results.**
+
+---
+
+<div align="center">
+  <strong>Built with ❤️ for the financial community</strong>
+</div>
 
 ## 💖 Donate / Tip
 

@@ -1,13 +1,48 @@
 {
   "name": "stock-snapshot",
   "version": "6.1.0",
-  "description": "Lightweight Node.js library to fetch stock financials, statistics, and overviews from StockAnalysis.com. Supports Thai and US stocks with auto-region detection",
+  "description": "A comprehensive TypeScript library for fetching financial data of publicly traded companies across multiple international markets. Get real-time stock statistics, historical financials, and advanced valuation metrics.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Dasimoa",
   "license": "MIT",
+  "homepage": "https://github.com/b9b4ymiN/thp.stock-snapshot#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/b9b4ymiN/thp.stock-snapshot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/b9b4ymiN/thp.stock-snapshot/issues"
+  },
+  "keywords": [
+    "stock",
+    "financial-data",
+    "market-data",
+    "typescript",
+    "nodejs",
+    "finance",
+    "valuation",
+    "financial-statements",
+    "stock-analysis",
+    "investment",
+    "nasdaq",
+    "nyse",
+    "international-markets",
+    "financial-ratios",
+    "dcf",
+    "wacc"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "release:patch": "npm run build && npx zx ./scripts/release.mjs patch",
     "release:minor": "npm run build && npx zx ./scripts/release.mjs minor",
     "release:major": "npm run build && npx zx ./scripts/release.mjs major"
