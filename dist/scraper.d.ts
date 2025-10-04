@@ -1,16 +1,20 @@
 import { FinancialPeriodType, FinancialStatement, StatementType } from "./types/FinancialStatement";
 import { StockStatistics } from "./types/StockStatistics";
-import { StockOverview } from "./types/StockOverview";
 import { FairValueItem } from "./types/FairValueItem";
-import { GuruWACCModel } from "./types/GuruWACC";
 import { valuationTableModel } from "./types/valuationTableMode";
-export type Market = "bkk" | "us";
-export declare function getStockOverview(rawSymbol: string): Promise<StockOverview>;
+import { GuruWACCModel } from "./types/GuruWACC";
+type MaybeError<T> = T | {
+    error: true;
+    message: string;
+    stack?: string;
+};
 export declare function getStockFinancials(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<FinancialStatement>;
 export declare function getStockStatisticsOLD(rawSymbol: string): Promise<StockStatistics>;
 export declare function getStockStatistics(rawSymbol: string): Promise<StockStatistics>;
-export declare function getStockFinancialsV2(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<StatementType[]>;
+export declare function getStockFinancialsV2(rawSymbol: string, statementType?: StatementType, periodType?: FinancialPeriodType): Promise<MaybeError<StatementType[]>>;
 export declare function getFairValueTable(symbol: string): Promise<FairValueItem[]>;
 export declare function getValuation(symbol: string): Promise<valuationTableModel>;
 export declare function getWaccAndRoicV3(symbol: string): Promise<GuruWACCModel>;
 export declare function fetchHtmlSafe(url: string): Promise<string>;
+export declare function getAlphaValue(rawSymbol: string): Promise<any>;
+export {};

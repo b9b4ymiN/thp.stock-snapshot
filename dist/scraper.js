@@ -36,7 +36,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStockOverview = getStockOverview;
 exports.getStockFinancials = getStockFinancials;
 exports.getStockStatisticsOLD = getStockStatisticsOLD;
 exports.getStockStatistics = getStockStatistics;
@@ -45,11 +44,41 @@ exports.getFairValueTable = getFairValueTable;
 exports.getValuation = getValuation;
 exports.getWaccAndRoicV3 = getWaccAndRoicV3;
 exports.fetchHtmlSafe = fetchHtmlSafe;
+exports.getAlphaValue = getAlphaValue;
 const puppeteer_extra_1 = __importDefault(require("puppeteer-extra"));
-const puppeteer_extra_plugin_stealth_1 = __importDefault(require("puppeteer-extra-plugin-stealth"));
 const axios_1 = __importDefault(require("axios"));
 const cheerio = __importStar(require("cheerio"));
-puppeteer_extra_1.default.use((0, puppeteer_extra_plugin_stealth_1.default)());
+const DEBUG_SCRAPER = !!process.env.DEBUG_SCRAPER;
+const logger = {
+    log: (...args) => {
+        if (DEBUG_SCRAPER)
+            console.log(...args);
+    },
+    warn: (...args) => {
+        if (DEBUG_SCRAPER)
+            console.warn(...args);
+    },
+    error: (...args) => {
+        if (DEBUG_SCRAPER)
+            console.error(...args);
+    },
+};
+const marketMap = {
+    ".BK": "bkk",
+    ".VN": "hose",
+    ".IN": "nse",
+    ".JP": "tyo",
+    ".MX": "bmv",
+    ".ID": "idx",
+};
+const alphaMarketMap = {
+    ".BK": "set",
+    ".VN": "vn",
+    ".IN": "nse",
+    ".JP": "tse",
+    ".MX": "bmv",
+    ".ID": "idx",
+};
 function detectMarket(symbol) {
     if (/^(BKK:|.+\.BK)$/i.test(symbol))
         return "bkk";
@@ -58,69 +87,22 @@ function detectMarket(symbol) {
 function cleanSymbol(rawSymbol) {
     return rawSymbol.replace(/^BKK:/, "").replace(/\.BK$/, "").toUpperCase();
 }
-// ดึงข้อมูล overview (ข้อมูลราคาปัจจุบัน)
-async function getStockOverview(rawSymbol) {
-    const marketMap = {
-        ".BK": "bkk",
-        ".VN": "hose",
-        ".IN": "nse",
-        ".JP": "tyo",
-        ".MX": "bmv",
-        ".ID": "idx",
-    };
-    let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
-    let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
-    // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
-    for (const suffix in marketMap) {
-        if (rawSymbol.toUpperCase().endsWith(suffix)) {
-            market = marketMap[suffix];
-            // ลบ Suffix ออกจากท้ายของ symbol
-            symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
-            break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
-        }
-    }
-    // ลบ Prefix 'BKK:' ออก (ถ้ามี)
-    symbol = symbol.replace(/^BKK:/i, "");
-    let url = market === "us"
-        ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
-        : `https://stockanalysis.com/quote/${market}/${symbol}/`;
-    const { data } = await axios_1.default.get(url);
-    const $ = cheerio.load(data);
-    const priceText = $("div.text-4xl.font-bold").first().text();
-    const price = parseFloat(priceText.replace(",", ""));
-    const findTableText = (label) => {
-        const table = $('table[data-test="overview-info"]');
-        const row = table
-            .find("td")
-            .filter((i, el) => $(el).text().trim() === label)
-            .parent();
-        return row.find("td").last().text().trim();
-    };
-    return {
-        price: price || 0,
-        marketCap: findTableText("Market Cap") || "",
-        revenue: findTableText("Revenue (ttm)") || "",
-        netIncome: findTableText("Net Income (ttm)") || "",
-        eps: findTableText("EPS (ttm)") || "",
-        peRatio: findTableText("PE Ratio") || "",
-        dividend: findTableText("Dividend") || "",
-        exDividendDate: findTableText("Ex-Dividend Date") || "",
-        earningsDate: findTableText("Earnings Date") || "",
-        range52Week: (() => {
-            const table = $('table[data-test="overview-quote"]');
-            const row = table
-                .find("td")
-                .filter((i, el) => $(el).text().trim() === "52-Week Range")
-                .parent();
-            return row.find("td").last().text().trim();
-        })() || "",
-        performance1Y: (() => {
-            const performance = $("div.flex.shrink.flex-row.space-x-1 span")
-                .first()
-                .text();
-            return performance.trim();
-        })() || "",
-    };
+function parseNumber(input) {
+    if (input === undefined || input === null)
+        return undefined;
+    const s = String(input).replace(/[,\$\s]/g, "");
+    if (s === "")
+        return undefined;
+    const n = Number(s.replace(/%/g, ""));
+    return isNaN(n) ? undefined : n;
+}
+function parsePercent(input) {
+    if (!input)
+        return undefined;
+    const m = String(input).match(/([+-]?[0-9,.]+)\s*%?/);
+    if (!m)
+        return undefined;
+    return parseNumber(m[1]);
 }
 // ดึงข้อมูล financials (งบย้อนหลัง)
 async function getStockFinancials(rawSymbol, statementType = "Income", periodType = "Annual") {
@@ -554,15 +536,6 @@ async function getStockStatisticsOLD(rawSymbol) {
     return statistics;
 }
 async function getStockStatistics(rawSymbol) {
-    // ตารางจับคู่ Suffix กับ Market Code ของเว็บไซต์
-    const marketMap = {
-        ".BK": "bkk",
-        ".VN": "hose",
-        ".IN": "nse",
-        ".JP": "tyo",
-        ".MX": "bmv",
-        ".ID": "idx",
-    };
     let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
     let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
     // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
@@ -580,8 +553,6 @@ async function getStockStatistics(rawSymbol) {
     const url = market === "us"
         ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/statistics/`
         : `https://stockanalysis.com/quote/${market}/${symbol}/statistics/`;
-    //https://stockanalysis.com/quote/bkk/AP/statistics/
-    //https://stockanalysis.com/stocks/aapl/statistics/
     const html = await fetchHtmlSafe(url);
     const $ = cheerio.load(html);
     const statistics = {
@@ -894,138 +865,146 @@ async function getStockStatistics(rawSymbol) {
 }
 // ดึงข้อมูล financials (งบย้อนหลัง) v2
 async function getStockFinancialsV2(rawSymbol, statementType = "Income", periodType = "Annual") {
-    const marketMap = {
-        ".BK": "bkk",
-        ".VN": "hose",
-        ".IN": "nse",
-        ".JP": "tyo",
-        ".MX": "bmv",
-        ".ID": "idx",
-    };
-    let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
-    let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
-    // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
-    for (const suffix in marketMap) {
-        if (rawSymbol.toUpperCase().endsWith(suffix)) {
-            market = marketMap[suffix];
-            // ลบ Suffix ออกจากท้ายของ symbol
-            symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
-            break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
-        }
-    }
-    // ลบ Prefix 'BKK:' ออก (ถ้ามี)
-    symbol = symbol.replace(/^BKK:/i, "");
-    let baseUrl = market === "bkk"
-        ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
-        : `https://stockanalysis.com/quote/${market}/${symbol}/`;
-    let url = `${baseUrl}financials/`;
-    if (statementType === "Balance Sheet")
-        url = `${baseUrl}financials/balance-sheet/`;
-    else if (statementType === "Cash Flow")
-        url = `${baseUrl}financials/cash-flow-statement/`;
-    else if (statementType === "Ratios")
-        url = `${baseUrl}financials/ratios/`;
-    if (periodType === "Quarterly")
-        url += "?p=quarterly";
-    else if (periodType === "TTM")
-        url += "?p=trailing";
-    const { data } = await axios_1.default.get(url);
-    const $ = cheerio.load(data);
-    const unitRaw = $(".relative.inline-block.text-left").text().trim();
-    const unitText = unitRaw
-        .replace(/Data Source|Download/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    let multiplier = 1;
-    if (unitText.includes("Million"))
-        multiplier = 1e6;
-    else if (unitText.includes("Billion"))
-        multiplier = 1e9;
-    else if (unitText.includes("Thousand"))
-        multiplier = 1e3;
-    else if (unitText.includes("Trillion"))
-        multiplier = 1e12;
-    const fiscalYear = [];
-    $("thead tr")
-        .first()
-        .find("th")
-        .slice(1)
-        .slice(0, -1)
-        .each((_, element) => {
-        fiscalYear.push($(element).text().trim());
-    });
-    const financialsMap = {};
-    $("tbody tr").each((_, row) => {
-        const cells = $(row).find("td");
-        const key = $(cells[0]).text().trim().replace(/\s/g, "");
-        //console.log("key : ", key);
-        if (!key)
-            return;
-        const values = [];
-        cells.slice(1, -1).each((_, cell) => {
-            const text = $(cell).text().trim().replace(/,/g, "").replace(/\$/g, "");
-            if (text === "-" || text === "") {
-                values.push(null);
+    try {
+        let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
+        let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
+        // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+        for (const suffix in marketMap) {
+            if (rawSymbol.toUpperCase().endsWith(suffix)) {
+                market = marketMap[suffix];
+                // ลบ Suffix ออกจากท้ายของ symbol
+                symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+                break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
             }
-            else {
-                const num = Number(text.replace("%", ""));
-                if (key == "PerShare")
-                    console.log("PerShare : ", text, num);
-                if (isNaN(num)) {
+        }
+        // ลบ Prefix 'BKK:' ออก (ถ้ามี)
+        symbol = symbol.replace(/^BKK:/i, "");
+        let baseUrl = market === "us"
+            ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
+            : `https://stockanalysis.com/quote/${market}/${symbol}/`;
+        let url = `${baseUrl}financials/`;
+        if (statementType === "Balance Sheet")
+            url = `${baseUrl}financials/balance-sheet/`;
+        else if (statementType === "Cash Flow")
+            url = `${baseUrl}financials/cash-flow-statement/`;
+        else if (statementType === "Ratios")
+            url = `${baseUrl}financials/ratios/`;
+        if (periodType === "Quarterly")
+            url += "?p=quarterly";
+        else if (periodType === "TTM")
+            url += "?p=trailing";
+        const { data } = await axios_1.default.get(url);
+        const $ = cheerio.load(data);
+        const unitRaw = $(".relative.inline-block.text-left").text().trim();
+        const unitText = unitRaw
+            .replace(/Data Source|Download/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        let multiplier = 1;
+        if (unitText.includes("Million"))
+            multiplier = 1e6;
+        else if (unitText.includes("Billion"))
+            multiplier = 1e9;
+        else if (unitText.includes("Thousand"))
+            multiplier = 1e3;
+        else if (unitText.includes("Trillion"))
+            multiplier = 1e12;
+        const fiscalYear = [];
+        $("thead tr")
+            .first()
+            .find("th")
+            .slice(1)
+            .slice(0, -1)
+            .each((_, element) => {
+            fiscalYear.push($(element).text().trim());
+        });
+        const financialsMap = {};
+        $("tbody tr").each((_, row) => {
+            const cells = $(row).find("td");
+            const key = $(cells[0]).text().trim().replace(/\s/g, "");
+            //console.log("key : ", key);
+            if (!key)
+                return;
+            const values = [];
+            cells.slice(1, -1).each((_, cell) => {
+                const text = $(cell).text().trim().replace(/,/g, "").replace(/\$/g, "");
+                if (text === "-" || text === "") {
                     values.push(null);
                 }
                 else {
-                    if (key.includes("EPS") ||
-                        key.includes("Margin") ||
-                        key.includes("Growth") ||
-                        key.includes("Yield") ||
-                        key.includes("Ratio") ||
-                        key.includes("PerShare") ||
-                        key.includes("TaxRate") ||
-                        key.includes("Turnover") ||
-                        key.includes("RO") ||
-                        key.includes("Payout") ||
-                        key.includes("ForwardPE")) {
-                        values.push(parseFloat(num.toFixed(2)));
+                    const num = Number(text.replace("%", ""));
+                    if (key == "PerShare")
+                        logger.log("PerShare : ", text, num);
+                    if (isNaN(num)) {
+                        values.push(null);
                     }
                     else {
-                        values.push(num * multiplier);
+                        if (key.includes("EPS") ||
+                            key.includes("Margin") ||
+                            key.includes("Growth") ||
+                            key.includes("Yield") ||
+                            key.includes("Ratio") ||
+                            key.includes("PerShare") ||
+                            key.includes("TaxRate") ||
+                            key.includes("Turnover") ||
+                            key.includes("RO") ||
+                            key.includes("Payout") ||
+                            key.includes("ForwardPE")) {
+                            values.push(parseFloat(num.toFixed(2)));
+                        }
+                        else {
+                            values.push(num * multiplier);
+                        }
                     }
                 }
-            }
+            });
+            financialsMap[key] = values;
         });
-        financialsMap[key] = values;
-    });
-    // ⬇️ สร้าง Array of Object
-    const result = fiscalYear.map((fiscalLabel, index) => {
-        let quarter = "ALL";
-        let year = "";
-        // เช็คว่า fiscalLabel เป็น Q1 Q2 Q3 Q4 หรือ FY
-        const matchQuarter = fiscalLabel.match(/(Q\d)\s+(\d{4})/);
-        const matchFY = fiscalLabel.match(/FY\s+(\d{4})/);
-        if (matchQuarter) {
-            quarter = matchQuarter[1]; // เช่น "Q2"
-            year = matchQuarter[2]; // เช่น "2024"
-        }
-        else if (matchFY) {
-            year = matchFY[1]; // เช่น "2024"
-        }
-        else {
-            year = fiscalLabel; // กรณีอื่น fallback ใส่ทั้ง string
-        }
-        const record = { fiscalYear: fiscalLabel, quarter, year };
-        // ✅ Normalize ชื่อ key ก่อน map
-        const normalizedMap = normalizeKeys(financialsMap);
-        for (const [key, valueArr] of Object.entries(normalizedMap)) {
-            record[key] = valueArr[index] ?? null;
-        }
-        return record;
-    });
-    return result;
+        // ⬇️ สร้าง Array of Object
+        const result = fiscalYear.map((fiscalLabel, index) => {
+            let quarter = "ALL";
+            let year = "";
+            // เช็คว่า fiscalLabel เป็น Q1 Q2 Q3 Q4 หรือ FY
+            const matchQuarter = fiscalLabel.match(/(Q\d)\s+(\d{4})/);
+            const matchFY = fiscalLabel.match(/FY\s+(\d{4})/);
+            if (matchQuarter) {
+                quarter = matchQuarter[1]; // เช่น "Q2"
+                year = matchQuarter[2]; // เช่น "2024"
+            }
+            else if (matchFY) {
+                year = matchFY[1]; // เช่น "2024"
+            }
+            else {
+                year = fiscalLabel; // กรณีอื่น fallback ใส่ทั้ง string
+            }
+            const record = { fiscalYear: fiscalLabel, quarter, year };
+            // ✅ Normalize ชื่อ key ก่อน map
+            const normalizedMap = normalizeKeys(financialsMap);
+            for (const [key, valueArr] of Object.entries(normalizedMap)) {
+                record[key] = valueArr[index] ?? null;
+            }
+            return record;
+        });
+        return result;
+    }
+    catch (err) {
+        logger.error("getStockFinancialsV2 error:", err?.message || err);
+        return {
+            error: true,
+            message: err?.message || String(err),
+            stack: err?.stack,
+        };
+    }
 }
 async function getFairValueTable(symbol) {
     let url = `https://valueinvesting.io/${symbol}/valuation/intrinsic-value`; // <-- US ต้องใช้ /stocks/
-    const html = await fetchHtmlSafe(url);
+    //console.log("getFairValueTable url : ", url);
+    //const html = await fetchHtmlSafe(url);
+    //const $ = cheerio.load(html);
+    const browser = await puppeteer_extra_1.default.launch({ headless: true });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+    const html = await page.content();
     const $ = cheerio.load(html);
     const table = [];
     $("table.each_summary tbody tr.hover_gray").each((_, row) => {
@@ -1236,26 +1215,118 @@ async function fetchHtmlSafe(url) {
         res.data.includes("Page Not Found"); //|| // fallback content
     //!res.data.includes('data-test="statistics-table"'); // <<< ตรวจเจาะจงว่ามี table หรือไม่
     if (isErrorPage) {
-        console.log("url error : ", url);
+        logger.warn("url error : ", url);
         throw new Error("Invalid page content (likely a 404 page)");
     }
     return res.data;
 }
+async function getAlphaValue(rawSymbol) {
+    try {
+        let market = "us";
+        let symbol = rawSymbol;
+        // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+        for (const suffix in marketMap) {
+            if (rawSymbol.toUpperCase().endsWith(suffix)) {
+                market = alphaMarketMap[suffix];
+                // ลบ Suffix ออกจากท้ายของ symbol
+                symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+                break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
+            }
+        }
+        let url = `https://www.alphaspread.com/security/nasdaq/${symbol}/summary`;
+        if (market !== "us") {
+            url = `https://www.alphaspread.com/security/${market}/${symbol}/summary`;
+        }
+        //console.log("getAlphaValue url : ", url);
+        const html = await fetchHtmlSafe(url);
+        const $ = cheerio.load(html);
+        const matched = [];
+        $("div").each((_, el) => {
+            const classAttr = $(el).attr("class") || "";
+            // ตรวจสอบว่ามีคำทั้งสองคำหรือ substring ที่ต้องการ
+            if (classAttr.includes("header") &&
+                classAttr.includes("restriction-sensitive-data")) {
+                const text = $(el).text().trim();
+                matched.push(text);
+            }
+        });
+        // ฟังก์ชันช่วย extract ตัวเลขแรกจากสตริง
+        const extractFirstNumber = (s) => {
+            if (!s)
+                return null;
+            const m = s.replace(/,/g, "").match(/[-+]?[0-9]*\.?[0-9]+/);
+            return m ? parseFloat(m[0]) : null;
+        };
+        const nums = matched.map((t) => extractFirstNumber(t));
+        const parsed = {
+            IntrinsicValue: nums[0] ?? null,
+            LowForecast: nums[1] ?? null,
+            AvgForecast: nums[2] ?? null,
+            HighForecast: nums[3] ?? null,
+            DCFValue: null,
+            Currency: null,
+            RelativeValue: null,
+        };
+        // หา DCF value จากลิงก์ที่มีคลาส intrinsic-value-dcf-link
+        const dcfLink = $('a.intrinsic-value-dcf-link, a[class*="intrinsic-value-dcf-link"]').first();
+        if (dcfLink && dcfLink.length) {
+            const detail = dcfLink.find(".detail").first().text().trim();
+            const currency = dcfLink.find(".currency").first().text().trim() || null;
+            const dcfMatch = detail.replace(/,/g, "").match(/[-+]?[0-9]*\.?[0-9]+/);
+            const dcfVal = dcfMatch ? parseFloat(dcfMatch[0]) : null;
+            parsed.DCFValue = dcfVal;
+            parsed.Currency = currency || null;
+        }
+        // หา Relative Value จากลิงก์ที่มีคลาส intrinsic-value-relative-link
+        const relLink = $('a.intrinsic-value-relative-link, a[class*="intrinsic-value-relative-link"]').first();
+        if (relLink && relLink.length) {
+            const rDetail = relLink.find(".detail").first().text().trim();
+            const rMatch = rDetail.replace(/,/g, "").match(/[-+]?[0-9]*\.?[0-9]+/);
+            parsed.RelativeValue = rMatch ? parseFloat(rMatch[0]) : null;
+        }
+        //console.log("Parsed values:", parsed);
+        return parsed;
+    }
+    catch (err) {
+        logger.error("getAlphaValue error:", err);
+        return null;
+    }
+}
+/* Test harness removed for npm readiness. To run locally set DEBUG_SCRAPER=1 and call functions from a separate script. */
 /*
 const test = async () => {
-  
-  let data: StatementType[] = await getStockFinancialsV2(
-    "BBCA.ID",
-    "Ratios",
-    "Annual"
-  );
-  console.log(data[0]);
+  try {
+    const symbol = "VCB.VN";
 
-  //BBCA = ID
-  //let data1 = await getStockOverview("BBCA.ID");
-  //console.log(data1);
-  //const fairValueData = await getFairValueTable("AP.BK");
-  //console.log(fairValueData);
+    const alphaValues = await getAlphaValue(symbol);
+    console.log("Alpha Values:", alphaValues);
+    
+    console.log(`Fetching statistics for ${symbol}...`);
+    const stats = await getStockStatistics(symbol);
+    console.log("Statistics:", stats);
+
+  
+    console.log(`\nFetching financials for ${symbol}...`);
+    const financials = await getStockFinancialsV2(symbol, "Cash Flow", "TTM");
+    console.log("Financials:", financials);
+ 
+    
+    console.log(`\nFetching fair value table for ${symbol}...`);
+    const fairValue = await getFairValueTable(symbol);
+    console.log("Fair Value Table:", fairValue);
+
+ 
+    console.log(`\nFetching valuation for ${symbol}...`);
+    const valuation = await getValuation(symbol);
+    console.log("Valuation:", valuation);
+    
+    console.log(`\nFetching WACC and ROIC for ${symbol}...`);
+    const waccRoic = await getWaccAndRoicV3(symbol);
+    console.log("WACC and ROIC:", waccRoic);
+    
+  } catch (error) {
+    console.error("Error during test:", error);
+  }
 };
 test();
 */ 
