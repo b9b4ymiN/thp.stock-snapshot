@@ -74,6 +74,139 @@ function parsePercent(input?: string): number | undefined {
 
 import { json } from "stream/consumers";
 
+// ดึงข้อมูล overview (ข้อมูลราคาปัจจุบัน)
+export async function getStockOverview(
+  rawSymbol: string
+): Promise<StockOverview> {
+  let market = "us"; // กำหนดให้เป็น us เป็นค่าเริ่มต้น
+  let symbol = rawSymbol; // ใช้ rawSymbol เป็นค่าเริ่มต้น
+
+  // วนลูปเพื่อตรวจหา Suffix และกำหนดค่า market กับ symbol
+  for (const suffix in marketMap) {
+    if (rawSymbol.toUpperCase().endsWith(suffix)) {
+      market = marketMap[suffix as keyof typeof marketMap];
+      // ลบ Suffix ออกจากท้ายของ symbol
+      symbol = rawSymbol.substring(0, rawSymbol.length - suffix.length);
+      break; // เมื่อเจอ Suffix ที่ตรงแล้ว ให้ออกจากลูป
+    }
+  }
+
+  // ลบ Prefix 'BKK:' ออก (ถ้ามี)
+  symbol = symbol.replace(/^BKK:/i, "");
+
+  let url =
+    market === "us"
+      ? `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
+      : `https://stockanalysis.com/quote/${market}/${symbol}/`;
+  const { data } = await axios.get(url);
+  const $ = cheerio.load(data);
+
+  const priceText = $("div.text-4xl.font-bold").first().text();
+  const price = parseFloat(priceText.replace(",", ""));
+
+  const findTableText = (label: string) => {
+    const table = $(
+      "table.w-\\[48\\%\\].text-sm.text-default.tiny\\:text-small.lg\\:w-auto.lg\\:min-w-\\[210px\\]"
+    );
+    const rawdata = table.find("td");
+    const row = rawdata
+      .filter((i, el) => $(el).text().trim() === label)
+      .parent();
+    return row.find("td").last().text().trim();
+  };
+
+  // Try multiple possible label variants and return the first non-empty value
+  const getField = (labels: string | string[]) => {
+    const tryLabels = Array.isArray(labels) ? labels : [labels];
+    for (const l of tryLabels) {
+      const v = findTableText(l);
+      if (v && v !== "") return v;
+    }
+    return "";
+  };
+
+  // Parsing helpers
+  const parseNumber = (text: string | undefined | null): number | undefined => {
+    if (!text) return undefined;
+    const cleaned = text
+      .replace(/,/g, "")
+      .replace(/\s+/g, "")
+      .replace(/\$/g, "");
+    // If text has unit suffix like B, M, K, handle conservatively: return undefined to avoid incorrect scaling
+    if (/[BMK]$/.test(cleaned)) return undefined;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? undefined : n;
+  };
+
+  const parsePercent = (
+    text: string | undefined | null
+  ): number | undefined => {
+    if (!text) return undefined;
+    const m = (text + "").match(/([+-]?\d+[\d.,]*)%?/);
+    if (!m) return undefined;
+    const n = parseFloat(m[1].replace(/,/g, ""));
+    return isNaN(n) ? undefined : n;
+  };
+
+  return {
+    price: price || 0,
+    marketCap: findTableText("Market Cap") || "",
+    revenue: findTableText("Revenue (ttm)") || "",
+    netIncome: findTableText("Net Income (ttm)") || "",
+    eps: parseNumber(findTableText("EPS (ttm)")) || 0,
+    peRatio: parseNumber(findTableText("PE Ratio")) || 0,
+    dividend: findTableText("Dividend") || "",
+    exDividendDate: findTableText("Ex-Dividend Date") || "",
+    earningsDate: findTableText("Earnings Date") || "",
+    // New fields from overview tables
+    sharesOutstanding:
+      getField(["Shares Out", "Shares Outstanding"]) || undefined,
+    forwardPERatio:
+      parseNumber(getField(["Forward PE", "Forward P/E"])) || undefined,
+    volume: (() => {
+      const v = getField("Volume") || "";
+      const n = parseNumber(v.replace(/,/g, ""));
+      return n !== undefined ? n : undefined;
+    })(),
+    open: parseNumber(getField("Open")) || undefined,
+    previousClose: parseNumber(getField("Previous Close")) || undefined,
+    daysRange: getField("Day's Range") || undefined,
+    beta: parseNumber(getField("Beta")) || undefined,
+    analysts: getField("Analysts") || undefined,
+    // raw priceTarget and parsed components
+    priceTarget: getField("Price Target") || "",
+    priceTargetPrice: (() => {
+      const pt = getField("Price Target") || "";
+      const m = pt.match(/([\d.,]+)/);
+      return m ? parseNumber(m[1]) : undefined;
+    })(),
+    upsidePercent: (() => {
+      const pt = getField("Price Target") || "";
+      const m = pt.match(/\(([+-]?\d+[\d.,]*)%?\)/);
+      return m ? parsePercent(m[1]) : undefined;
+    })(),
+    // range52Week raw string (kept) and parsed low/high
+    range52Week: getField("52-Week Range") || "",
+    low52Week: (() => {
+      const r = getField("52-Week Range") || "";
+      const m = r.match(/([\d.,]+)\s*-\s*([\d.,]+)/);
+      return m ? parseNumber(m[1]) : undefined;
+    })(),
+    high52Week: (() => {
+      const r = getField("52-Week Range") || "";
+      const m = r.match(/([\d.,]+)\s*-\s*([\d.,]+)/);
+      return m ? parseNumber(m[2]) : undefined;
+    })(),
+    performance1Y:
+      (() => {
+        const performance = $("div.flex.shrink.flex-row.space-x-1 span")
+          .first()
+          .text();
+        return performance.trim();
+      })() || "",
+  } as StockOverview;
+}
+
 // ดึงข้อมูล financials (งบย้อนหลัง)
 export async function getStockFinancials(
   rawSymbol: string,
@@ -1310,7 +1443,7 @@ export async function getAlphaValue(rawSymbol: string): Promise<any> {
 
     const html = await fetchHtmlSafe(url);
     const $ = cheerio.load(html);
-      
+
     const matched: string[] = [];
     $("div").each((_, el) => {
       const classAttr = $(el).attr("class") || "";
@@ -1381,6 +1514,9 @@ const test = async () => {
   try {
     const symbol = "VCB.VN";
 
+    const StockOverview = await getStockOverview(symbol);
+    console.log("Stock Overview:", StockOverview);
+
     const alphaValues = await getAlphaValue(symbol);
     console.log("Alpha Values:", alphaValues);
     
@@ -1412,4 +1548,5 @@ const test = async () => {
   }
 };
 test();
+
 */
